@@ -15,16 +15,19 @@ const WealthResultsScreen: React.FC<WealthResultsScreenProps> = ({
   const [currentScene, setCurrentScene] = useState(0);
   const [showFullResults, setShowFullResults] = useState(false);
 
+  const { inputs, results } = calculatorData;
+  const childrenNames = inputs.childrenNames.filter((name: string) => name.trim() !== '');
+
   const scenes = [
     {
-      title: `The ${calculatorData.childrenNames[0] || 'Johnson'} Family Today`,
+      title: `The ${childrenNames[0] || 'Johnson'} Family Today`,
       content: (
         <div className="text-center">
           <div className="w-32 h-32 bg-gradient-to-br from-green-400 to-green-500 rounded-full mx-auto mb-6 flex items-center justify-center">
             <span className="text-white text-4xl">👨‍👩‍👧‍👦</span>
           </div>
           <h3 className="text-2xl font-bold text-gray-900 mb-4">
-            Net Worth: ${calculatorData.netWorth.toLocaleString()}
+            Net Worth: ${inputs.netWorth.toLocaleString()}
           </h3>
           <p className="text-gray-600 italic">"We're doing pretty well..."</p>
         </div>
@@ -37,19 +40,19 @@ const WealthResultsScreen: React.FC<WealthResultsScreenProps> = ({
           <div className="flex justify-center items-end space-x-4 mb-8">
             <div className="text-center">
               <div className="w-16 h-32 bg-gradient-to-t from-green-400 to-green-500 rounded-t-lg mb-2"></div>
-              <p className="text-sm">2025<br/>$750K</p>
+              <p className="text-sm">2025<br/>${Math.round(inputs.netWorth/1000)}K</p>
             </div>
             <div className="text-center">
               <div className="w-16 h-24 bg-gradient-to-t from-yellow-400 to-yellow-500 rounded-t-lg mb-2"></div>
-              <p className="text-sm">2035<br/>$650K</p>
+              <p className="text-sm">2035<br/>${Math.round(inputs.netWorth * 0.85/1000)}K</p>
             </div>
             <div className="text-center">
               <div className="w-16 h-16 bg-gradient-to-t from-orange-400 to-orange-500 rounded-t-lg mb-2"></div>
-              <p className="text-sm">2045<br/>$480K</p>
+              <p className="text-sm">2045<br/>${Math.round(inputs.netWorth * 0.64/1000)}K</p>
             </div>
             <div className="text-center">
               <div className="w-16 h-8 bg-gradient-to-t from-red-400 to-red-500 rounded-t-lg mb-2"></div>
-              <p className="text-sm">2055<br/>$250K</p>
+              <p className="text-sm">2055<br/>${Math.round(inputs.netWorth * 0.33/1000)}K</p>
             </div>
           </div>
           <p className="text-gray-600">The silent extinction begins</p>
@@ -62,17 +65,19 @@ const WealthResultsScreen: React.FC<WealthResultsScreenProps> = ({
         <div className="text-center space-y-6">
           <div className="bg-red-50 rounded-2xl p-6">
             <h4 className="text-lg font-bold text-gray-900 mb-4">
-              👧 {calculatorData.childrenNames[0] || 'Emma'} (age 47) inherits:
+              👧 {childrenNames[0] || 'Emma'} (age 47) inherits:
             </h4>
-            <div className="text-3xl font-bold text-red-600">$47,000</div>
+            <div className="text-3xl font-bold text-red-600">${results.childrenInheritance.toLocaleString()}</div>
           </div>
-          <div className="bg-red-50 rounded-2xl p-6">
-            <h4 className="text-lg font-bold text-gray-900 mb-4">
-              👦 {calculatorData.childrenNames[1] || 'Jake'} (age 43) inherits:
-            </h4>
-            <div className="text-3xl font-bold text-red-600">$47,000</div>
-          </div>
-          <p className="text-gray-600">Down from the ${calculatorData.netWorth.toLocaleString()} you have today</p>
+          {childrenNames[1] && (
+            <div className="bg-red-50 rounded-2xl p-6">
+              <h4 className="text-lg font-bold text-gray-900 mb-4">
+                👦 {childrenNames[1]} (age 43) inherits:
+              </h4>
+              <div className="text-3xl font-bold text-red-600">${results.childrenInheritance.toLocaleString()}</div>
+            </div>
+          )}
+          <p className="text-gray-600">Down from the ${inputs.netWorth.toLocaleString()} you have today</p>
         </div>
       )
     },
@@ -81,14 +86,14 @@ const WealthResultsScreen: React.FC<WealthResultsScreenProps> = ({
       content: (
         <div className="text-center">
           <div className="text-6xl font-bold text-red-600 mb-6 animate-pulse">
-            2067
+            {results.extinctionYear}
           </div>
           <div className="bg-red-100 rounded-2xl p-6 mb-6">
-            <div className="text-2xl font-bold text-red-800 mb-2">42 years remaining</div>
+            <div className="text-2xl font-bold text-red-800 mb-2">{results.yearsRemaining} years remaining</div>
             <div className="text-red-600">Your grandchildren will inherit: $0</div>
           </div>
           <p className="text-gray-600">
-            Your family's 3-generation wealth journey ends with {calculatorData.childrenNames[0] || 'Emma'} and {calculatorData.childrenNames[1] || 'Jake'}
+            Your family's 3-generation wealth journey ends with {childrenNames.join(' and ') || 'your children'}
           </p>
         </div>
       )
@@ -100,13 +105,13 @@ const WealthResultsScreen: React.FC<WealthResultsScreenProps> = ({
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-red-50 rounded-2xl p-4 text-center">
               <h4 className="font-bold text-red-800 mb-2">WITHOUT PROTECTION</h4>
-              <p className="text-sm text-red-600">Extinction: 2067</p>
+              <p className="text-sm text-red-600">Extinction: {results.extinctionYear}</p>
               <p className="text-sm text-red-600">Grandchildren get: $0</p>
             </div>
             <div className="bg-green-50 rounded-2xl p-4 text-center">
               <h4 className="font-bold text-green-800 mb-2">WITH PROTECTION</h4>
-              <p className="text-sm text-green-600">Wealth Extends: 2089+</p>
-              <p className="text-sm text-green-600">Grandchildren get: $340K</p>
+              <p className="text-sm text-green-600">Wealth Extends: {results.protectedScenario.extinctionYear}+</p>
+              <p className="text-sm text-green-600">Grandchildren get: ${results.protectedScenario.grandchildrenInheritance.toLocaleString()}</p>
             </div>
           </div>
           <p className="text-center text-gray-600">
@@ -142,7 +147,7 @@ const WealthResultsScreen: React.FC<WealthResultsScreenProps> = ({
             <span className="text-red-600 font-bold">WEALTH EXTINCTION ALERT</span>
           </div>
           <p className="text-sm text-red-700">
-            Your family wealth dies in 2067 • Children inherit $47K each • Grandchildren inherit $0
+            Your family wealth dies in {results.extinctionYear} • Children inherit ${results.childrenInheritance.toLocaleString()} each • Grandchildren inherit $0
           </p>
         </div>
 
@@ -169,7 +174,7 @@ const WealthResultsScreen: React.FC<WealthResultsScreenProps> = ({
                 <text x="50" y="170" textAnchor="middle" className="text-xs fill-gray-600">2025</text>
                 <text x="150" y="90" textAnchor="middle" className="text-xs fill-gray-600">2045</text>
                 <text x="250" y="110" textAnchor="middle" className="text-xs fill-gray-600">2055</text>
-                <text x="350" y="200" textAnchor="middle" className="text-xs fill-gray-600">2067</text>
+                <text x="350" y="200" textAnchor="middle" className="text-xs fill-gray-600">{results.extinctionYear}</text>
               </svg>
             </div>
           </div>
@@ -178,22 +183,16 @@ const WealthResultsScreen: React.FC<WealthResultsScreenProps> = ({
           <div className="mb-8">
             <h3 className="text-lg font-bold text-gray-900 mb-4">What's Killing Your Wealth?</h3>
             <div className="space-y-4">
-              {[
-                { icon: '🏥', title: 'Unplanned Parent Care', amount: '$127,000', percentage: '35%', description: 'Without coordination, parent emergencies drain wealth' },
-                { icon: '🎓', title: 'Education Cost Inflation', amount: '$89,000', percentage: '24%', description: `${calculatorData.childrenNames[0] || 'Emma'} & ${calculatorData.childrenNames[1] || 'Jake'}'s college will cost 60% more than today` },
-                { icon: '⚖️', title: 'Estate Planning Gaps', amount: '$67,000', percentage: '18%', description: 'Legal fees and taxes without proper planning' },
-                { icon: '💸', title: 'Lifestyle Inflation', amount: '$54,000', percentage: '15%', description: 'Spending growth outpacing wealth growth' },
-                { icon: '📈', title: 'Investment Fees', amount: '$31,000', percentage: '8%', description: 'High fees compounding over decades' }
-              ].map((destroyer, index) => (
-                <div key={index} className="bg-red-50 rounded-2xl p-4">
+              {results.topWealthDestroyers.map((destroyer: any, index: number) => (
+                <div key={destroyer.id} className="bg-red-50 rounded-2xl p-4">
                   <div className="flex items-start gap-3">
                     <span className="text-2xl">{destroyer.icon}</span>
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="font-bold text-gray-900">{destroyer.title}</h4>
                         <div className="text-right">
-                          <div className="font-bold text-red-600">{destroyer.amount}</div>
-                          <div className="text-sm text-red-500">({destroyer.percentage} of loss)</div>
+                          <div className="font-bold text-red-600">${destroyer.amount.toLocaleString()}</div>
+                          <div className="text-sm text-red-500">({destroyer.percentage}% of loss)</div>
                         </div>
                       </div>
                       <p className="text-sm text-gray-600">{destroyer.description}</p>
@@ -213,22 +212,20 @@ const WealthResultsScreen: React.FC<WealthResultsScreenProps> = ({
                 <div className="space-y-2">
                   <p className="flex items-center gap-2">
                     <span className="text-2xl">👨‍👩‍👧‍👦</span>
-                    <span>Net Worth: ${calculatorData.netWorth.toLocaleString()}</span>
+                    <span>Net Worth: ${inputs.netWorth.toLocaleString()}</span>
                   </p>
                   <p className="text-green-700">Feeling secure</p>
                 </div>
               </div>
               <div className="bg-red-50 rounded-2xl p-6">
-                <h4 className="font-bold text-red-800 mb-4">INHERITANCE (2067)</h4>
+                <h4 className="font-bold text-red-800 mb-4">INHERITANCE ({results.extinctionYear})</h4>
                 <div className="space-y-2">
-                  <p className="flex items-center gap-2">
-                    <span className="text-2xl">👧</span>
-                    <span>{calculatorData.childrenNames[0] || 'Emma'} receives: $47,000</span>
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <span className="text-2xl">👦</span>
-                    <span>{calculatorData.childrenNames[1] || 'Jake'} receives: $47,000</span>
-                  </p>
+                  {childrenNames.map((name: string, index: number) => (
+                    <p key={index} className="flex items-center gap-2">
+                      <span className="text-2xl">{index === 0 ? '👧' : '👦'}</span>
+                      <span>{name} receives: ${results.childrenInheritance.toLocaleString()}</span>
+                    </p>
+                  ))}
                   <p className="text-red-700">"Why so little, Dad?"</p>
                 </div>
               </div>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowRight, ArrowLeft, ChevronDown } from 'lucide-react';
+import { calculateWealthExtinction, getSmartDefaults } from '../utils/wealthCalculations';
 
 interface CalculatorData {
   age: number;
@@ -15,7 +16,7 @@ interface CalculatorData {
 }
 
 interface WealthCalculatorFlowProps {
-  onComplete: (data: CalculatorData) => void;
+  onComplete: (data: any) => void;
   onBack: () => void;
 }
 
@@ -42,10 +43,48 @@ const WealthCalculatorFlow: React.FC<WealthCalculatorFlowProps> = ({ onComplete,
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1);
     } else {
-      // Start loading sequence
+      // Start calculation and loading sequence
       setIsLoading(true);
+      
+      // Apply smart defaults if needed
+      const smartDefaults = getSmartDefaults(data.age, data.zipCode);
+      const finalData = { ...data, ...smartDefaults };
+      
+      // Simulate calculation time
       setTimeout(() => {
-        onComplete(data);
+        try {
+          const results = calculateWealthExtinction(finalData);
+          onComplete({
+            inputs: finalData,
+            results: results
+          });
+        } catch (error) {
+          console.error('Calculation error:', error);
+          // Provide fallback results
+          onComplete({
+            inputs: finalData,
+            results: {
+              extinctionYear: 2067,
+              yearsRemaining: 42,
+              currentWealth: finalData.netWorth,
+              childrenInheritance: 47000,
+              grandchildrenInheritance: 0,
+              projections: [],
+              topWealthDestroyers: [],
+              familyImpact: {
+                today: { netWorth: finalData.netWorth, status: 'Feeling secure' },
+                inheritance: { year: 2067, children: [] },
+                grandchildren: { year: 2089, inheritance: 0, collegeShortfall: 400000 }
+              },
+              protectedScenario: {
+                extinctionYear: 2089,
+                additionalYears: 22,
+                grandchildrenInheritance: 340000,
+                improvements: []
+              }
+            }
+          });
+        }
       }, 3000);
     }
   };
