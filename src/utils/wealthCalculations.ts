@@ -1,488 +1,712 @@
-// Wealth Extinction Calculator - Core Calculation Engine
-// Based on comprehensive algorithm specification
+// wealthCalculations.ts - Advanced Wealth Extinction Calculation Engine
+// Implementation of the sophisticated financial modeling described in specifications
 
-export interface CalculatorInputs {
-  age: number;
-  zipCode: string;
-  maritalStatus: 'single' | 'married' | 'divorced';
-  children: number;
-  childrenNames: string[];
-  netWorth: number;
-  income: string;
-  mainConcern: string;
-  parentsSituation: string;
+interface CalculationInputs {
+  userProfile: {
+    age: number;
+    maritalStatus: string;
+    location: { zipCode: string; state: string };
+    healthStatus: string;
+  };
+  familyStructure: {
+    children: Array<{
+      name: string;
+      age: number;
+      academicPerformance: string;
+      educationPath: string;
+    }>;
+    parents: Array<{
+      age: number;
+      healthStatus: string;
+      financialStatus: string;
+      location: string;
+    }>;
+    siblings: Array<{
+      relationshipQuality: string;
+      financialCapacity: string;
+      careWillingness: string;
+    }>;
+  };
+  financialProfile: {
+    netWorth: number;
+    income: number;
+    expenses: number;
+    riskTolerance: string;
+  };
+  complexityScore: number;
 }
 
-export interface WealthProjection {
+interface WealthProjection {
   year: number;
   age: number;
   wealth: number;
   income: number;
   expenses: number;
-  events: string[];
+  netCashFlow: number;
+  majorEvents: string[];
+  confidenceLevel: number;
 }
 
-export interface WealthResults {
+interface CalculationResults {
   extinctionYear: number;
   yearsRemaining: number;
   currentWealth: number;
   childrenInheritance: number;
   grandchildrenInheritance: number;
   projections: WealthProjection[];
-  topWealthDestroyers: WealthDestroyer[];
-  familyImpact: FamilyImpact;
-  protectedScenario: ProtectedScenario;
-}
-
-export interface WealthDestroyer {
-  id: string;
-  title: string;
-  icon: string;
-  amount: number;
-  percentage: number;
-  description: string;
-}
-
-export interface FamilyImpact {
-  today: {
-    netWorth: number;
-    status: string;
+  topWealthDestroyers: Array<{ factor: string; impact: number; description: string }>;
+  familyImpact: {
+    today: { netWorth: number; status: string };
+    inheritance: { year: number; children: Array<{ name: string; inheritance: number }> };
+    grandchildren: { year: number; inheritance: number; collegeShortfall: number };
   };
-  inheritance: {
-    year: number;
-    children: Array<{
-      name: string;
-      age: number;
-      inheritance: number;
-    }>;
+  protectedScenario: {
+    extinctionYear: number;
+    additionalYears: number;
+    grandchildrenInheritance: number;
+    improvements: string[];
   };
-  grandchildren: {
-    year: number;
-    inheritance: number;
-    collegeShortfall: number;
+  complexityAnalysis: {
+    score: number;
+    primaryComplexityDrivers: string[];
+    coordinationOpportunities: string[];
+    optimizationPotential: number;
+  };
+  scenarioAnalysis: {
+    bestCase: { extinctionYear: number; probability: number };
+    mostLikely: { extinctionYear: number; probability: number };
+    worstCase: { extinctionYear: number; probability: number };
   };
 }
 
-export interface ProtectedScenario {
-  extinctionYear: number;
-  additionalYears: number;
-  grandchildrenInheritance: number;
-  improvements: string[];
-}
+/**
+ * Smart Defaults Engine - Provides intelligent defaults based on demographics
+ */
+export function getSmartDefaults(age: number, zipCode: string): Partial<CalculationInputs> {
+  // Regional cost of living adjustments
+  const regionalMultipliers = getRegionalMultipliers(zipCode);
+  
+  // Age-based financial profile defaults
+  const baseIncome = getTypicalIncomeByAge(age) * regionalMultipliers.income;
+  const baseExpenses = baseIncome * 0.75 * regionalMultipliers.col; // 75% of income for expenses
+  const typicalNetWorth = getTypicalNetWorthByAge(age) * regionalMultipliers.wealth;
 
-// Income progression model
-function calculateIncomeProgression(baseIncome: number, currentAge: number, targetYear: number): number {
-  const yearsFromNow = targetYear - 2025;
-  const ageAtTarget = currentAge + yearsFromNow;
-  
-  let careerGrowthRate = 0.03; // Base 3% growth
-  
-  // Career stage adjustments
-  if (ageAtTarget >= 25 && ageAtTarget <= 35) {
-    careerGrowthRate += 0.02; // Early career acceleration
-  } else if (ageAtTarget >= 50 && ageAtTarget <= 65) {
-    careerGrowthRate *= 0.5; // Late career slowdown
-  } else if (ageAtTarget > 65) {
-    return baseIncome * 0.4; // Retirement income (Social Security + pension)
-  }
-  
-  // Economic cycle adjustments (simplified)
-  const economicCycleFactor = 1.0; // Could be enhanced with recession modeling
-  
-  return baseIncome * Math.pow(1 + careerGrowthRate * economicCycleFactor, yearsFromNow);
-}
-
-// Expense progression model
-function calculateExpenseProgression(
-  baseExpenses: number, 
-  currentAge: number, 
-  targetYear: number,
-  familySize: number,
-  mainConcern: string
-): number {
-  const yearsFromNow = targetYear - 2025;
-  const ageAtTarget = currentAge + yearsFromNow;
-  
-  // Base inflation rate
-  let inflationRate = 0.035; // 3.5% general inflation
-  
-  // Lifestyle inflation (30% of income growth becomes expense growth)
-  const lifestyleInflation = 0.01; // 1% additional annually
-  
-  // Life stage adjustments
-  let lifestageMultiplier = 1.0;
-  if (ageAtTarget >= 45 && ageAtTarget <= 65) {
-    lifestageMultiplier = 1.2; // Peak spending years
-  } else if (ageAtTarget > 65) {
-    lifestageMultiplier = 0.8; // Retirement expense reduction
-  }
-  
-  // Special expenses based on main concern
-  let specialExpenses = 0;
-  if (mainConcern === 'parent-care' && ageAtTarget >= 50) {
-    specialExpenses = 24000 * Math.pow(1.055, yearsFromNow); // Healthcare inflation
-  }
-  
-  const baseWithInflation = baseExpenses * Math.pow(1 + inflationRate + lifestyleInflation, yearsFromNow);
-  return (baseWithInflation * lifestageMultiplier) + specialExpenses;
-}
-
-// Investment return model (simplified Monte Carlo)
-function calculateInvestmentReturns(wealth: number, year: number): number {
-  // Simplified portfolio return model
-  const baseReturn = 0.07; // 7% average return
-  const volatility = 0.16; // 16% standard deviation
-  
-  // Market cycle simulation (simplified)
-  const cyclePosition = (year - 2025) % 8; // 8-year average cycle
-  let cycleFactor = 1.0;
-  
-  if (cyclePosition === 6 || cyclePosition === 7) {
-    cycleFactor = 0.85; // Recession years
-  } else if (cyclePosition === 0 || cyclePosition === 1) {
-    cycleFactor = 1.15; // Recovery years
-  }
-  
-  // Add some randomness (simplified)
-  const randomFactor = 0.9 + (Math.random() * 0.2); // ±10% random variation
-  
-  return wealth * (baseReturn * cycleFactor * randomFactor);
-}
-
-// Lifecycle events modeling
-function calculateLifecycleEvents(age: number, year: number, familySize: number): { cost: number; events: string[] } {
-  const events: string[] = [];
-  let totalCost = 0;
-  
-  // Health events (increase with age)
-  if (age > 50) {
-    const healthEventProbability = (age - 50) * 0.01; // 1% per year after 50
-    if (Math.random() < healthEventProbability) {
-      const healthCost = 25000 + (Math.random() * 50000); // $25K-$75K
-      totalCost += healthCost;
-      events.push('Health emergency');
+  return {
+    financialProfile: {
+      income: baseIncome,
+      expenses: baseExpenses,
+      netWorth: typicalNetWorth,
+      riskTolerance: age < 40 ? 'moderate' : age < 55 ? 'moderate' : 'conservative'
     }
-  }
-  
-  // Family emergencies
-  if (familySize > 2) {
-    const familyEmergencyProbability = 0.08 * (familySize / 4); // 8% base, scaled by family size
-    if (Math.random() < familyEmergencyProbability) {
-      const emergencyCost = 15000 + (Math.random() * 25000); // $15K-$40K
-      totalCost += emergencyCost;
-      events.push('Family emergency');
-    }
-  }
-  
-  return { cost: totalCost, events };
+  };
 }
 
-// Education cost projection
-function calculateEducationCosts(
-  children: number, 
-  childrenNames: string[], 
-  currentAge: number, 
-  year: number
-): number {
-  if (children === 0) return 0;
+/**
+ * Core Wealth Extinction Calculator with Monte Carlo Simulation
+ */
+export function calculateWealthExtinction(inputs: CalculationInputs): CalculationResults {
+  console.log('Starting wealth extinction calculation with inputs:', inputs);
   
-  let totalEducationCosts = 0;
-  const educationInflationRate = 0.055; // 5.5% annually
+  // Run multiple scenarios for Monte Carlo analysis
+  const scenarios = runMonteCarloSimulation(inputs, 1000);
   
-  // Assume children are currently 8-16 years old
-  for (let i = 0; i < children; i++) {
-    const childAge = 8 + (i * 2); // Spread children ages
-    const collegeStartYear = 2025 + (18 - childAge);
-    
-    if (year >= collegeStartYear && year < collegeStartYear + 4) {
-      // Child is in college during this year
-      const yearsToCollege = collegeStartYear - 2025;
-      const currentCollegeCost = 75000; // Private college baseline
-      const inflatedCost = currentCollegeCost * Math.pow(1 + educationInflationRate, yearsToCollege);
-      totalEducationCosts += inflatedCost;
-    }
-  }
+  // Calculate primary timeline
+  const baseProjection = calculateBaseWealthTrajectory(inputs);
+  const extinctionYear = findWealthExtinctionYear(baseProjection);
   
-  return totalEducationCosts;
+  // Analyze complexity factors
+  const complexityAnalysis = analyzeComplexityFactors(inputs);
+  
+  // Calculate generational impact
+  const familyImpact = calculateGenerationalImpact(inputs, baseProjection, extinctionYear);
+  
+  // Generate optimization scenarios
+  const protectedScenario = calculateProtectedScenario(inputs, baseProjection);
+  
+  // Identify top wealth destroyers
+  const topWealthDestroyers = identifyWealthDestroyers(inputs, scenarios);
+  
+  // Scenario analysis from Monte Carlo
+  const scenarioAnalysis = analyzeScenarios(scenarios);
+  
+  return {
+    extinctionYear,
+    yearsRemaining: extinctionYear - 2025,
+    currentWealth: inputs.financialProfile.netWorth,
+    childrenInheritance: familyImpact.inheritance.children.reduce((sum, child) => sum + child.inheritance, 0),
+    grandchildrenInheritance: familyImpact.grandchildren.inheritance,
+    projections: baseProjection,
+    topWealthDestroyers,
+    familyImpact,
+    protectedScenario,
+    complexityAnalysis,
+    scenarioAnalysis
+  };
 }
 
-// Parent care cost model
-function calculateParentCareCosts(
-  parentsSituation: string, 
-  currentAge: number, 
-  year: number
-): number {
-  if (currentAge < 45) return 0; // Too young for parent care
-  
-  const yearsFromNow = year - 2025;
-  const parentAge = 65 + yearsFromNow; // Assume parents are currently 65
-  
-  if (parentAge < 70) return 0; // Parents still independent
-  
-  let baseCost = 0;
-  switch (parentsSituation) {
-    case 'independent':
-      baseCost = 0;
-      break;
-    case 'may-need-support':
-      baseCost = 12000; // Occasional support
-      break;
-    case 'already-helping':
-      baseCost = 24000; // Regular support
-      break;
-  }
-  
-  // Increase costs with parent age
-  const ageFactor = Math.pow(1.1, Math.max(0, parentAge - 75));
-  const healthcareInflation = Math.pow(1.055, yearsFromNow);
-  
-  return baseCost * ageFactor * healthcareInflation;
-}
-
-// Main wealth evolution calculation
-function calculateWealthEvolution(inputs: CalculatorInputs): WealthProjection[] {
+/**
+ * Base Wealth Trajectory Calculation
+ */
+function calculateBaseWealthTrajectory(inputs: CalculationInputs): WealthProjection[] {
   const projections: WealthProjection[] = [];
-  const startYear = 2025;
-  const endYear = 2100; // Project 75 years
+  let currentWealth = inputs.financialProfile.netWorth;
+  let currentAge = inputs.userProfile.age;
   
-  // Parse income from string
-  const incomeMap: { [key: string]: number } = {
-    '$50K-$75K': 62500,
-    '$75K-$100K': 87500,
-    '$100K-$150K': 125000,
-    '$150K-$200K': 175000,
-    '$200K+': 250000
-  };
-  
-  const baseIncome = incomeMap[inputs.income] || 125000;
-  const baseExpenses = baseIncome * 0.7; // Assume 70% of income as expenses
-  
-  let currentWealth = inputs.netWorth;
-  
-  for (let year = startYear; year <= endYear; year++) {
-    const ageAtYear = inputs.age + (year - startYear);
+  for (let year = 0; year < 75; year++) {
+    const currentYear = 2025 + year;
+    currentAge = inputs.userProfile.age + year;
     
     // Calculate income for this year
-    const yearlyIncome = calculateIncomeProgression(baseIncome, inputs.age, year);
+    const yearlyIncome = calculateIncomeProgression(year, currentAge, inputs);
     
     // Calculate expenses for this year
-    const yearlyExpenses = calculateExpenseProgression(
-      baseExpenses, 
-      inputs.age, 
-      year, 
-      inputs.children + 2, // Family size
-      inputs.mainConcern
-    );
+    const yearlyExpenses = calculateExpenseProgression(year, currentAge, inputs);
     
     // Calculate investment returns
-    const investmentReturns = calculateInvestmentReturns(currentWealth, year);
+    const investmentReturns = calculateInvestmentReturns(currentWealth, year, inputs);
     
-    // Calculate lifecycle events
-    const lifecycleEvents = calculateLifecycleEvents(ageAtYear, year, inputs.children + 2);
-    
-    // Calculate education costs
-    const educationCosts = calculateEducationCosts(inputs.children, inputs.childrenNames, inputs.age, year);
-    
-    // Calculate parent care costs
-    const parentCareCosts = calculateParentCareCosts(inputs.parentsSituation, inputs.age, year);
+    // Apply lifecycle events
+    const lifecycleImpacts = calculateLifecycleEvents(year, currentAge, inputs);
     
     // Update wealth
-    const netIncome = yearlyIncome - yearlyExpenses;
-    const totalSpecialCosts = lifecycleEvents.cost + educationCosts + parentCareCosts;
-    
-    currentWealth = Math.max(0, currentWealth + investmentReturns + netIncome - totalSpecialCosts);
+    const netCashFlow = yearlyIncome - yearlyExpenses + investmentReturns + lifecycleImpacts.netImpact;
+    currentWealth = Math.max(0, currentWealth + netCashFlow);
     
     projections.push({
-      year,
-      age: ageAtYear,
+      year: currentYear,
+      age: currentAge,
       wealth: currentWealth,
       income: yearlyIncome,
-      expenses: yearlyExpenses + totalSpecialCosts,
-      events: lifecycleEvents.events
+      expenses: yearlyExpenses,
+      netCashFlow,
+      majorEvents: lifecycleImpacts.events,
+      confidenceLevel: calculateConfidenceLevel(year, inputs.complexityScore)
     });
     
-    // Stop if wealth hits zero
-    if (currentWealth === 0) break;
+    // Stop if wealth is extinct
+    if (currentWealth <= 0) break;
   }
   
   return projections;
 }
 
-// Calculate top wealth destroyers
-function calculateWealthDestroyers(inputs: CalculatorInputs, projections: WealthProjection[]): WealthDestroyer[] {
-  const destroyers: WealthDestroyer[] = [];
+/**
+ * Income Progression Model with Career Lifecycle
+ */
+function calculateIncomeProgression(year: number, currentAge: number, inputs: CalculationInputs): number {
+  let baseIncome = inputs.financialProfile.income;
+  
+  // Career stage adjustments
+  let growthRate = 0.03; // Base 3% annual growth
+  
+  if (currentAge < 35) {
+    growthRate = 0.05; // Early career boost
+  } else if (currentAge < 50) {
+    growthRate = 0.03; // Mid-career stability
+  } else if (currentAge < 65) {
+    growthRate = 0.01; // Late career slowdown
+  } else {
+    growthRate = -0.8; // Retirement income drop
+  }
+  
+  // Economic cycle adjustments
+  const recessionYears = [2030, 2038, 2047]; // Projected recession years
+  let economicMultiplier = 1.0;
+  if (recessionYears.includes(2025 + year)) {
+    economicMultiplier = 0.85; // 15% income reduction during recession
+  }
+  
+  const projectedIncome = baseIncome * Math.pow(1 + growthRate, year) * economicMultiplier;
+  
+  return Math.max(0, projectedIncome);
+}
+
+/**
+ * Expense Progression Model with Lifecycle Changes
+ */
+function calculateExpenseProgression(year: number, currentAge: number, inputs: CalculationInputs): number {
+  let baseExpenses = inputs.financialProfile.expenses;
+  
+  // General inflation
+  const inflationRate = 0.035;
+  let inflatedExpenses = baseExpenses * Math.pow(1 + inflationRate, year);
+  
+  // Lifecycle adjustments
+  let lifecycleMultiplier = 1.0;
+  
+  // Children education costs
+  const educationCosts = calculateEducationCosts(year, inputs);
   
   // Parent care costs
-  const totalParentCare = projections.reduce((sum, p) => {
-    return sum + calculateParentCareCosts(inputs.parentsSituation, inputs.age, p.year);
-  }, 0);
+  const parentCareCosts = calculateParentCareCosts(year, currentAge, inputs);
   
-  if (totalParentCare > 0) {
-    destroyers.push({
-      id: 'parent-care',
-      title: 'Unplanned Parent Care',
-      icon: '🏥',
-      amount: totalParentCare,
-      percentage: 35,
-      description: 'Without coordination, parent emergencies drain wealth'
-    });
-  }
+  // Healthcare cost escalation
+  const healthcareInflation = 0.055; // Healthcare inflates faster
+  const additionalHealthcareCosts = 5000 * Math.pow(1 + healthcareInflation, year) * 
+    (currentAge > 50 ? Math.pow(1.05, currentAge - 50) : 1);
   
-  // Education costs
-  const totalEducation = projections.reduce((sum, p) => {
-    return sum + calculateEducationCosts(inputs.children, inputs.childrenNames, inputs.age, p.year);
-  }, 0);
+  // Lifestyle inflation (behavioral factor)
+  const lifestyleInflation = Math.min(0.02, 0.005 * year); // Cap at 2%
+  lifecycleMultiplier += lifestyleInflation;
   
-  if (totalEducation > 0) {
-    destroyers.push({
-      id: 'education',
-      title: 'Education Cost Inflation',
-      icon: '🎓',
-      amount: totalEducation,
-      percentage: 24,
-      description: `${inputs.childrenNames.join(' & ')}'s college will cost 60% more than today`
-    });
-  }
+  const totalExpenses = inflatedExpenses * lifecycleMultiplier + educationCosts + 
+                       parentCareCosts + additionalHealthcareCosts;
   
-  // Estate planning gaps
-  destroyers.push({
-    id: 'estate-planning',
-    title: 'Estate Planning Gaps',
-    icon: '⚖️',
-    amount: inputs.netWorth * 0.15, // 15% loss due to poor planning
-    percentage: 18,
-    description: 'Legal fees and taxes without proper planning'
-  });
-  
-  // Lifestyle inflation
-  destroyers.push({
-    id: 'lifestyle-inflation',
-    title: 'Lifestyle Inflation',
-    icon: '💸',
-    amount: inputs.netWorth * 0.12,
-    percentage: 15,
-    description: 'Spending growth outpacing wealth growth'
-  });
-  
-  // Investment fees
-  destroyers.push({
-    id: 'investment-fees',
-    title: 'Investment Fees',
-    icon: '📈',
-    amount: inputs.netWorth * 0.08,
-    percentage: 8,
-    description: 'High fees compounding over decades'
-  });
-  
-  return destroyers.sort((a, b) => b.amount - a.amount);
+  return totalExpenses;
 }
 
-// Main calculation function
-export function calculateWealthExtinction(inputs: CalculatorInputs): WealthResults {
-  const projections = calculateWealthEvolution(inputs);
+/**
+ * Education Cost Calculation Based on Child Details
+ */
+function calculateEducationCosts(year: number, inputs: CalculationInputs): number {
+  let totalEducationCosts = 0;
+  const currentYear = 2025 + year;
   
-  // Find extinction year
-  const extinctionProjection = projections.find(p => p.wealth === 0);
-  const extinctionYear = extinctionProjection?.year || 2100;
-  const yearsRemaining = extinctionYear - 2025;
-  
-  // Calculate children's inheritance
-  const inheritanceYear = 2025 + (65 - inputs.age); // When user turns 65
-  const inheritanceProjection = projections.find(p => p.year === inheritanceYear);
-  const totalInheritance = inheritanceProjection?.wealth || 0;
-  const childrenInheritance = inputs.children > 0 ? totalInheritance / inputs.children : totalInheritance;
-  
-  // Calculate family impact
-  const familyImpact: FamilyImpact = {
-    today: {
-      netWorth: inputs.netWorth,
-      status: 'Feeling secure'
-    },
-    inheritance: {
-      year: inheritanceYear,
-      children: inputs.childrenNames.map((name, index) => ({
-        name,
-        age: 47 - (index * 2), // Estimate ages
-        inheritance: childrenInheritance
-      }))
-    },
-    grandchildren: {
-      year: extinctionYear,
-      inheritance: 0,
-      collegeShortfall: 400000 // Estimated future college costs
+  inputs.familyStructure.children.forEach(child => {
+    const childAgeInYear = child.age + year;
+    
+    // College years (18-22)
+    if (childAgeInYear >= 18 && childAgeInYear <= 22) {
+      let annualCost = 25000; // Base state school cost
+      
+      switch (child.educationPath) {
+        case 'private_state':
+          annualCost = 45000;
+          break;
+        case 'elite_private':
+          annualCost = 75000;
+          break;
+        case 'international':
+          annualCost = 95000;
+          break;
+        default:
+          annualCost = 25000;
+      }
+      
+      // Education inflation (6% annually)
+      let inflatedCost = annualCost * Math.pow(1.06, year);
+      
+      // Performance-based adjustments
+      if (child.academicPerformance === 'exceptional') {
+        inflatedCost *= 0.7; // Merit scholarships
+      } else if (child.academicPerformance === 'struggling') {
+        inflatedCost *= 1.3; // Additional support needed
+      }
+      
+      totalEducationCosts += inflatedCost;
     }
-  };
+  });
   
-  // Calculate protected scenario
-  const protectedScenario: ProtectedScenario = {
-    extinctionYear: extinctionYear + 22, // 22 additional years with protection
-    additionalYears: 22,
-    grandchildrenInheritance: 340000,
-    improvements: [
-      'Coordinated parent care planning',
-      'Education cost optimization',
-      'Estate planning implementation',
-      'Investment fee reduction',
-      'Lifestyle inflation control'
-    ]
-  };
+  return totalEducationCosts;
+}
+
+/**
+ * Parent Care Cost Modeling
+ */
+function calculateParentCareCosts(year: number, currentAge: number, inputs: CalculationInputs): number {
+  let totalParentCareCosts = 0;
+  
+  inputs.familyStructure.parents.forEach(parent => {
+    const parentAgeInYear = parent.age + year;
+    
+    // Care needs increase with age
+    let careProbability = 0;
+    if (parentAgeInYear > 75) {
+      careProbability = Math.min(0.9, (parentAgeInYear - 75) * 0.1);
+    }
+    
+    if (careProbability > 0) {
+      let monthlyCost = 0;
+      
+      switch (parent.healthStatus) {
+        case 'excellent':
+          monthlyCost = 2000;
+          break;
+        case 'good':
+          monthlyCost = 3500;
+          break;
+        case 'fair':
+          monthlyCost = 6000;
+          break;
+        case 'declining':
+          monthlyCost = 8500;
+          break;
+        case 'serious':
+          monthlyCost = 12000;
+          break;
+      }
+      
+      // Geographic adjustments
+      if (parent.location === 'different_state') {
+        monthlyCost *= 1.4; // Coordination costs
+      } else if (parent.location === 'different_city') {
+        monthlyCost *= 1.2;
+      }
+      
+      // Sibling coordination benefits
+      const siblingCount = inputs.familyStructure.siblings.length;
+      const coordinationEfficiency = calculateCoordinationEfficiency(inputs.familyStructure.siblings);
+      const costSharing = Math.max(0.3, coordinationEfficiency / siblingCount);
+      
+      totalParentCareCosts += (monthlyCost * 12 * careProbability * costSharing);
+    }
+  });
+  
+  return totalParentCareCosts;
+}
+
+/**
+ * Investment Returns with Market Volatility
+ */
+function calculateInvestmentReturns(wealth: number, year: number, inputs: CalculationInputs): number {
+  // Base portfolio allocation
+  const stockAllocation = 0.6; // Simplified - in real version, this would be dynamic
+  const bondAllocation = 0.3;
+  const cashAllocation = 0.1;
+  
+  // Market returns with volatility
+  const stockReturn = getMarketReturn('stocks', year);
+  const bondReturn = getMarketReturn('bonds', year);
+  const cashReturn = 0.02; // 2% for cash
+  
+  // Portfolio return
+  const portfolioReturn = (stockAllocation * stockReturn) + 
+                         (bondAllocation * bondReturn) + 
+                         (cashAllocation * cashReturn);
+  
+  // Risk tolerance adjustments
+  let riskAdjustment = 1.0;
+  switch (inputs.financialProfile.riskTolerance) {
+    case 'conservative':
+      riskAdjustment = 0.7;
+      break;
+    case 'aggressive':
+      riskAdjustment = 1.3;
+      break;
+    default:
+      riskAdjustment = 1.0;
+  }
+  
+  // Fees and taxes
+  const feeDrag = 0.01; // 1% annual fees
+  const taxDrag = 0.015; // 1.5% tax drag
+  
+  const netReturn = (portfolioReturn * riskAdjustment) - feeDrag - taxDrag;
+  
+  return wealth * netReturn;
+}
+
+/**
+ * Market Return Simulation with Cycles
+ */
+function getMarketReturn(assetClass: string, year: number): number {
+  // Simplified market cycle simulation
+  const cycleYear = year % 10; // 10-year market cycles
+  
+  if (assetClass === 'stocks') {
+    const baseReturns = [0.12, 0.08, -0.05, 0.15, 0.06, -0.12, 0.18, 0.03, -0.08, 0.11];
+    return baseReturns[cycleYear] + (Math.random() - 0.5) * 0.1; // Add volatility
+  } else if (assetClass === 'bonds') {
+    const baseReturns = [0.04, 0.03, 0.06, 0.02, 0.05, 0.08, 0.01, 0.04, 0.07, 0.03];
+    return baseReturns[cycleYear] + (Math.random() - 0.5) * 0.02;
+  }
+  
+  return 0.02; // Default return
+}
+
+/**
+ * Lifecycle Events Simulation
+ */
+function calculateLifecycleEvents(year: number, currentAge: number, inputs: CalculationInputs): 
+  { netImpact: number; events: string[] } {
+  const events: string[] = [];
+  let netImpact = 0;
+  
+  // Health emergencies (probability increases with age)
+  const healthEmergencyProb = Math.min(0.1, (currentAge - 40) * 0.005);
+  if (Math.random() < healthEmergencyProb) {
+    const emergencyCost = 15000 + Math.random() * 35000;
+    netImpact -= emergencyCost;
+    events.push(`Health emergency: $${emergencyCost.toLocaleString()} cost`);
+  }
+  
+  // Family emergencies
+  if (Math.random() < 0.03) { // 3% annual probability
+    const familyEmergencyCost = 5000 + Math.random() * 20000;
+    netImpact -= familyEmergencyCost;
+    events.push(`Family emergency: $${familyEmergencyCost.toLocaleString()} support needed`);
+  }
+  
+  // Inheritance (late in life)
+  if (currentAge > 55 && Math.random() < 0.02) { // 2% chance after 55
+    const inheritanceAmount = 50000 + Math.random() * 200000;
+    netImpact += inheritanceAmount;
+    events.push(`Inheritance received: $${inheritanceAmount.toLocaleString()}`);
+  }
+  
+  // Job loss during recessions
+  const recessionYears = [5, 13, 22]; // Years 2030, 2038, 2047
+  if (recessionYears.includes(year) && Math.random() < 0.15) {
+    const jobLossCost = inputs.financialProfile.income * 0.3; // 30% income loss
+    netImpact -= jobLossCost;
+    events.push(`Job transition: $${jobLossCost.toLocaleString()} income impact`);
+  }
+  
+  return { netImpact, events };
+}
+
+/**
+ * Find Wealth Extinction Year
+ */
+function findWealthExtinctionYear(projections: WealthProjection[]): number {
+  for (const projection of projections) {
+    if (projection.wealth <= 0) {
+      return projection.year;
+    }
+  }
+  
+  // If wealth never goes to zero in projection period, return far future
+  return 2100;
+}
+
+/**
+ * Calculate Generational Impact
+ */
+function calculateGenerationalImpact(inputs: CalculationInputs, projections: WealthProjection[], extinctionYear: number) {
+  const userDeathYear = 2025 + (85 - inputs.userProfile.age); // Assume death at 85
+  const wealthAtDeath = projections.find(p => p.year >= userDeathYear)?.wealth || 0;
+  
+  // Estate taxes and transfer costs
+  const estateTax = calculateEstateTax(wealthAtDeath);
+  const transferCosts = wealthAtDeath * 0.05; // 5% for legal and transfer costs
+  const netTransfer = wealthAtDeath - estateTax - transferCosts;
+  
+  // Children inheritance
+  const childrenCount = inputs.familyStructure.children.length || 1;
+  const inheritancePerChild = netTransfer / childrenCount;
+  
+  const children = inputs.familyStructure.children.map(child => ({
+    name: child.name,
+    inheritance: inheritancePerChild
+  }));
+  
+  // Grandchildren projection (wealth typically 70% depleted by second generation)
+  const grandchildrenInheritance = netTransfer * 0.3;
+  const collegeShortfall = Math.max(0, 400000 - grandchildrenInheritance); // Assuming $400K future college costs
   
   return {
-    extinctionYear,
-    yearsRemaining,
-    currentWealth: inputs.netWorth,
-    childrenInheritance,
-    grandchildrenInheritance: 0,
-    projections,
-    topWealthDestroyers: calculateWealthDestroyers(inputs, projections),
-    familyImpact,
-    protectedScenario
+    today: {
+      netWorth: inputs.financialProfile.netWorth,
+      status: 'Building wealth actively'
+    },
+    inheritance: {
+      year: userDeathYear,
+      children
+    },
+    grandchildren: {
+      year: userDeathYear + 30,
+      inheritance: grandchildrenInheritance,
+      collegeShortfall
+    }
   };
 }
 
-// Smart defaults based on demographics
-export function getSmartDefaults(age: number, zipCode: string): Partial<CalculatorInputs> {
-  // This would integrate with Census API in production
-  // For now, providing reasonable defaults based on age and location
+/**
+ * Calculate Protected Scenario with Optimization
+ */
+function calculateProtectedScenario(inputs: CalculationInputs, baseProjection: WealthProjection[]) {
+  // Simulate improvements from systematic planning
+  const improvements = [
+    'Family coordination optimization (+$150K savings)',
+    'Education funding strategy (+2.3 years timeline)',
+    'Parent care planning (+1.8 years timeline)',
+    'Investment optimization (+$89K growth)',
+    'Estate planning efficiency (+$67K transfer savings)'
+  ];
   
-  const defaults: Partial<CalculatorInputs> = {};
+  const timelineExtension = Math.floor(inputs.complexityScore * 2.5); // Higher complexity = more optimization potential
+  const baseExtinctionYear = findWealthExtinctionYear(baseProjection);
   
-  // Income defaults based on age
-  if (age >= 25 && age <= 35) {
-    defaults.income = '$75K-$100K';
-  } else if (age >= 35 && age <= 50) {
-    defaults.income = '$100K-$150K';
-  } else if (age >= 50) {
-    defaults.income = '$150K-$200K';
+  return {
+    extinctionYear: baseExtinctionYear + timelineExtension,
+    additionalYears: timelineExtension,
+    grandchildrenInheritance: 340000, // Improved outcome
+    improvements
+  };
+}
+
+/**
+ * Complexity Analysis
+ */
+function analyzeComplexityFactors(inputs: CalculationInputs) {
+  const complexityDrivers = [];
+  const coordinationOpportunities = [];
+  
+  if (inputs.familyStructure.children.length > 2) {
+    complexityDrivers.push('Multiple children with different education paths');
   }
   
-  // Net worth defaults based on age and income
-  const incomeMultiplier = age < 35 ? 2 : age < 50 ? 5 : 8;
-  const baseIncome = 125000; // Assume middle income
-  defaults.netWorth = Math.round((baseIncome * incomeMultiplier) / 10000) * 10000;
-  
-  // Family defaults based on age
-  if (age >= 30 && age <= 45) {
-    defaults.children = 2;
-    defaults.childrenNames = ['Emma', 'Jake'];
-    defaults.maritalStatus = 'married';
-  } else if (age < 30) {
-    defaults.children = 0;
-    defaults.childrenNames = [];
-    defaults.maritalStatus = 'single';
+  if (inputs.familyStructure.parents.some(p => p.financialStatus !== 'independent')) {
+    complexityDrivers.push('Parent care coordination required');
+    coordinationOpportunities.push('Sibling care cost sharing optimization');
   }
   
-  // Main concern defaults based on age
-  if (age >= 45) {
-    defaults.mainConcern = 'parent-care';
-    defaults.parentsSituation = 'may-need-support';
-  } else if (age >= 35) {
-    defaults.mainConcern = 'college';
-    defaults.parentsSituation = 'independent';
-  } else {
-    defaults.mainConcern = 'retirement';
-    defaults.parentsSituation = 'independent';
+  if (inputs.complexityScore > 7) {
+    complexityDrivers.push('High-complexity family financial coordination');
+    coordinationOpportunities.push('Professional family wealth management');
   }
   
-  return defaults;
+  const optimizationPotential = Math.floor(inputs.complexityScore * 50000);
+  
+  return {
+    score: inputs.complexityScore,
+    primaryComplexityDrivers: complexityDrivers,
+    coordinationOpportunities,
+    optimizationPotential
+  };
+}
+
+/**
+ * Helper Functions
+ */
+function getRegionalMultipliers(zipCode: string) {
+  // Simplified regional adjustments - in real app, this would use actual data
+  const highCostAreas = ['94000', '10000', '02100']; // SF, NY, Boston area codes
+  const isHighCost = highCostAreas.some(area => zipCode.startsWith(area.substring(0, 3)));
+  
+  return {
+    income: isHighCost ? 1.4 : 1.0,
+    col: isHighCost ? 1.6 : 1.0, // Cost of living
+    wealth: isHighCost ? 1.3 : 1.0
+  };
+}
+
+function getTypicalIncomeByAge(age: number): number {
+  if (age < 30) return 65000;
+  if (age < 40) return 85000;
+  if (age < 50) return 110000;
+  if (age < 60) return 125000;
+  return 95000; // Pre-retirement
+}
+
+function getTypicalNetWorthByAge(age: number): number {
+  if (age < 30) return 50000;
+  if (age < 40) return 200000;
+  if (age < 50) return 500000;
+  if (age < 60) return 750000;
+  return 900000;
+}
+
+function calculateEstateTax(wealth: number): number {
+  // Simplified federal estate tax (2025 exemption ~$13.6M)
+  const exemption = 13600000;
+  if (wealth > exemption) {
+    return (wealth - exemption) * 0.40; // 40% tax rate
+  }
+  return 0;
+}
+
+function calculateCoordinationEfficiency(siblings: any[]): number {
+  if (siblings.length === 0) return 1.0;
+  
+  const avgQuality = siblings.reduce((sum, sib) => {
+    const quality = sib.relationshipQuality === 'close' ? 1.0 : 
+                   sib.relationshipQuality === 'good' ? 0.8 : 0.5;
+    return sum + quality;
+  }, 0) / siblings.length;
+  
+  return avgQuality;
+}
+
+function calculateConfidenceLevel(year: number, complexityScore: number): number {
+  // Confidence decreases over time and with complexity
+  const baseConfidence = 0.9;
+  const timeDecay = year * 0.01; // 1% per year
+  const complexityImpact = (complexityScore - 5) * 0.05; // Complexity above 5 reduces confidence
+  
+  return Math.max(0.3, baseConfidence - timeDecay - complexityImpact);
+}
+
+/**
+ * Monte Carlo Simulation Framework
+ */
+function runMonteCarloSimulation(inputs: CalculationInputs, numSimulations: number) {
+  const scenarios = [];
+  
+  for (let i = 0; i < numSimulations; i++) {
+    // Create variation in inputs for this scenario
+    const scenarioInputs = {
+      ...inputs,
+      // Add random variations to key parameters
+      financialProfile: {
+        ...inputs.financialProfile,
+        income: inputs.financialProfile.income * (0.8 + Math.random() * 0.4), // ±20% variation
+      }
+    };
+    
+    const projection = calculateBaseWealthTrajectory(scenarioInputs);
+    const extinctionYear = findWealthExtinctionYear(projection);
+    
+    scenarios.push({
+      extinctionYear,
+      finalWealth: projection[projection.length - 1]?.wealth || 0
+    });
+  }
+  
+  return scenarios;
+}
+
+function analyzeScenarios(scenarios: any[]) {
+  const extinctionYears = scenarios.map(s => s.extinctionYear).sort((a, b) => a - b);
+  
+  return {
+    bestCase: {
+      extinctionYear: extinctionYears[Math.floor(extinctionYears.length * 0.9)],
+      probability: 0.1
+    },
+    mostLikely: {
+      extinctionYear: extinctionYears[Math.floor(extinctionYears.length * 0.5)],
+      probability: 0.5
+    },
+    worstCase: {
+      extinctionYear: extinctionYears[Math.floor(extinctionYears.length * 0.1)],
+      probability: 0.1
+    }
+  };
+}
+
+function identifyWealthDestroyers(inputs: CalculationInputs, scenarios: any[]) {
+  const destroyers = [];
+  
+  if (inputs.familyStructure.children.length > 0) {
+    destroyers.push({
+      factor: 'Education Cost Inflation',
+      impact: inputs.familyStructure.children.length * 150000,
+      description: 'College costs rising faster than inflation'
+    });
+  }
+  
+  if (inputs.familyStructure.parents.some(p => p.financialStatus !== 'independent')) {
+    destroyers.push({
+      factor: 'Parent Care Coordination',
+      impact: 230000,
+      description: 'Uncoordinated care costs 40% more than planned care'
+    });
+  }
+  
+  destroyers.push({
+    factor: 'Behavioral Investment Decisions',
+    impact: 180000,
+    description: 'Poor timing and emotional decisions reduce returns'
+  });
+  
+  if (inputs.complexityScore > 7) {
+    destroyers.push({
+      factor: 'Family Decision Complexity',
+      impact: Math.floor(inputs.complexityScore * 25000),
+      description: 'Coordination failures and missed optimization opportunities'
+    });
+  }
+  
+  return destroyers.sort((a, b) => b.impact - a.impact).slice(0, 5);
 }
