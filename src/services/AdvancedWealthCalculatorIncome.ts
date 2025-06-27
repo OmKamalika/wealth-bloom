@@ -1,0 +1,286 @@
+// src/services/AdvancedWealthCalculatorIncome.ts
+// Implementation of income progression calculations for the advanced wealth calculation engine
+
+import { CalculatorData } from '../types/calculator';
+
+/**
+ * Advanced Wealth Calculator Income Progression Service
+ * Implements sophisticated income modeling with Indian market context
+ */
+export class AdvancedWealthCalculatorIncome {
+  // Indian inflation rates by year (historical and projected)
+  private static readonly INDIAN_INFLATION_RATES = {
+    2025: 0.045, // 4.5%
+    2026: 0.043, // 4.3%
+    2027: 0.042, // 4.2%
+    2028: 0.040, // 4.0%
+    2029: 0.039, // 3.9%
+    2030: 0.038, // 3.8%
+    // Default for future years
+    default: 0.037 // 3.7%
+  };
+
+  // Industry growth rates in India
+  private static readonly INDUSTRY_GROWTH_RATES: Record<string, number> = {
+    'technology': 0.12,
+    'healthcare': 0.09,
+    'finance': 0.08,
+    'manufacturing': 0.06,
+    'retail': 0.05,
+    'education': 0.045,
+    'government': 0.04,
+    'agriculture': 0.035,
+    'construction': 0.055,
+    'hospitality': 0.05,
+    'transportation': 0.045,
+    'energy': 0.07,
+    'telecommunications': 0.08,
+    'media': 0.06,
+    'pharmaceutical': 0.095,
+    'consulting': 0.075,
+    'real_estate': 0.065,
+    // Default for unlisted industries
+    'default': 0.055
+  };
+
+  // Career progression factors by role level
+  private static readonly ROLE_PROGRESSION_FACTORS: Record<string, number> = {
+    'junior': 0.08,
+    'mid': 0.06,
+    'senior': 0.045,
+    'leadership': 0.035
+  };
+
+  // Business income growth rates by business age
+  private static readonly BUSINESS_GROWTH_RATES: Record<string, number> = {
+    'startup': 0.25, // 0-3 years
+    'growth': 0.15,  // 3-7 years
+    'established': 0.08, // 7-15 years
+    'mature': 0.04   // 15+ years
+  };
+
+  /**
+   * Calculate Indian income progression based on detailed inputs
+   */
+  static calculateIndianIncomeProgression(year: number, currentAge: number, inputs: CalculatorData): number {
+    const baseIncome = inputs.financialFoundation.annualIncome;
+    
+    // Different calculation methods based on income source
+    switch (inputs.financialFoundation.primaryIncomeSource) {
+      case 'salary':
+        return this.calculateSalaryProgression(year, currentAge, baseIncome, inputs);
+      case 'business':
+        return this.calculateBusinessIncomeProgression(year, currentAge, baseIncome, inputs);
+      case 'mixed':
+        return this.calculateMixedIncomeProgression(year, currentAge, baseIncome, inputs);
+      default:
+        return this.calculateDefaultIncomeProgression(year, currentAge, baseIncome);
+    }
+  }
+
+  /**
+   * Calculate salary progression with Indian corporate context
+   */
+  private static calculateSalaryProgression(
+    year: number, 
+    currentAge: number, 
+    baseIncome: number, 
+    inputs: CalculatorData
+  ): number {
+    // Get industry growth rate
+    const industry = inputs.coreIdentity.employment.industry.toLowerCase();
+    const industryGrowthRate = this.INDUSTRY_GROWTH_RATES[industry] || this.INDUSTRY_GROWTH_RATES.default;
+    
+    // Get role progression factor
+    const roleLevel = inputs.coreIdentity.employment.roleLevel;
+    const roleProgressionFactor = this.ROLE_PROGRESSION_FACTORS[roleLevel];
+    
+    // Calculate base growth rate (decreases with age)
+    let baseGrowthRate = roleProgressionFactor;
+    
+    // Adjust for age - growth slows down after 45
+    if (currentAge > 45) {
+      baseGrowthRate *= Math.pow(0.95, currentAge - 45); // 5% reduction per year after 45
+    }
+    
+    // Adjust for education level
+    const educationMultiplier = this.getEducationMultiplier(inputs.coreIdentity.education.level);
+    
+    // Adjust for city tier
+    const locationMultiplier = this.getLocationMultiplier(inputs.coreIdentity.location.cityType);
+    
+    // Calculate income for this year
+    let yearlyIncome = baseIncome;
+    
+    // Apply compounding growth for each year
+    for (let i = 0; i < year; i++) {
+      const yearGrowthRate = baseGrowthRate + (industryGrowthRate * 0.5);
+      yearlyIncome *= (1 + yearGrowthRate * educationMultiplier * locationMultiplier);
+      
+      // Adjust growth rate for next year (slight decrease over time)
+      baseGrowthRate *= 0.98;
+    }
+    
+    // Handle retirement
+    if (currentAge >= 60) {
+      const yearsIntoRetirement = currentAge - 60;
+      const retirementFactor = Math.max(0.1, 1 - (yearsIntoRetirement * 0.15)); // 15% reduction per year, min 10%
+      yearlyIncome *= retirementFactor;
+    }
+    
+    return yearlyIncome;
+  }
+
+  /**
+   * Calculate business income progression with Indian entrepreneurial context
+   */
+  private static calculateBusinessIncomeProgression(
+    year: number, 
+    currentAge: number, 
+    baseIncome: number, 
+    inputs: CalculatorData
+  ): number {
+    // Determine business age category (assuming business started at age 30 if no data)
+    const businessStartAge = 30; // Default assumption
+    const businessAge = Math.max(0, currentAge - businessStartAge);
+    
+    let businessGrowthRate: number;
+    
+    // Determine business growth rate based on age
+    if (businessAge < 3) {
+      businessGrowthRate = this.BUSINESS_GROWTH_RATES.startup;
+    } else if (businessAge < 7) {
+      businessGrowthRate = this.BUSINESS_GROWTH_RATES.growth;
+    } else if (businessAge < 15) {
+      businessGrowthRate = this.BUSINESS_GROWTH_RATES.established;
+    } else {
+      businessGrowthRate = this.BUSINESS_GROWTH_RATES.mature;
+    }
+    
+    // Adjust for financial sophistication
+    const sophisticationMultiplier = this.getFinancialSophisticationMultiplier(inputs.coreIdentity.financialSophistication);
+    
+    // Adjust for location
+    const locationMultiplier = this.getLocationMultiplier(inputs.coreIdentity.location.cityType);
+    
+    // Calculate income for this year
+    let yearlyIncome = baseIncome;
+    
+    // Apply compounding growth for each year
+    for (let i = 0; i < year; i++) {
+      // Business income has higher volatility
+      const volatilityFactor = 0.8 + (Math.random() * 0.4); // 80-120% of expected growth
+      yearlyIncome *= (1 + (businessGrowthRate * sophisticationMultiplier * locationMultiplier * volatilityFactor));
+      
+      // Business growth rate decreases over time
+      businessGrowthRate *= 0.96;
+    }
+    
+    // Handle retirement/business exit
+    if (currentAge >= 65) {
+      const yearsIntoRetirement = currentAge - 65;
+      const retirementFactor = Math.max(0.2, 1 - (yearsIntoRetirement * 0.1)); // 10% reduction per year, min 20%
+      yearlyIncome *= retirementFactor;
+    }
+    
+    return yearlyIncome;
+  }
+
+  /**
+   * Calculate mixed income progression (salary + business/investments)
+   */
+  private static calculateMixedIncomeProgression(
+    year: number, 
+    currentAge: number, 
+    baseIncome: number, 
+    inputs: CalculatorData
+  ): number {
+    // Assume 60% salary, 40% business/investment income for mixed
+    const salaryPortion = baseIncome * 0.6;
+    const businessPortion = baseIncome * 0.4;
+    
+    const salaryIncome = this.calculateSalaryProgression(year, currentAge, salaryPortion, inputs);
+    const businessIncome = this.calculateBusinessIncomeProgression(year, currentAge, businessPortion, inputs);
+    
+    return salaryIncome + businessIncome;
+  }
+
+  /**
+   * Default income progression when specific data is unavailable
+   */
+  private static calculateDefaultIncomeProgression(year: number, currentAge: number, baseIncome: number): number {
+    // Simple model with age-based growth
+    let growthRate = 0.05; // 5% base growth
+    
+    // Adjust for age
+    if (currentAge > 45) {
+      growthRate *= Math.pow(0.95, currentAge - 45);
+    }
+    
+    // Apply inflation
+    const inflationRate = this.getInflationRate(2025 + year);
+    
+    // Calculate income with compounding
+    let yearlyIncome = baseIncome;
+    for (let i = 0; i < year; i++) {
+      yearlyIncome *= (1 + growthRate);
+      growthRate *= 0.98; // Slight decrease in growth rate each year
+    }
+    
+    // Handle retirement
+    if (currentAge >= 60) {
+      const yearsIntoRetirement = currentAge - 60;
+      const retirementFactor = Math.max(0.15, 1 - (yearsIntoRetirement * 0.12));
+      yearlyIncome *= retirementFactor;
+    }
+    
+    return yearlyIncome;
+  }
+
+  /**
+   * Get education level multiplier
+   */
+  private static getEducationMultiplier(educationLevel: string): number {
+    switch (educationLevel) {
+      case 'phd': return 1.15;
+      case 'professional': return 1.12;
+      case 'masters': return 1.08;
+      case 'bachelors': return 1.0;
+      case 'high_school': return 0.92;
+      default: return 1.0;
+    }
+  }
+
+  /**
+   * Get location multiplier based on city tier
+   */
+  private static getLocationMultiplier(cityType: string): number {
+    switch (cityType) {
+      case 'metro': return 1.1;
+      case 'tier2': return 1.0;
+      case 'tier3': return 0.9;
+      case 'rural': return 0.8;
+      default: return 1.0;
+    }
+  }
+
+  /**
+   * Get financial sophistication multiplier
+   */
+  private static getFinancialSophisticationMultiplier(sophistication: string): number {
+    switch (sophistication) {
+      case 'expert': return 1.15;
+      case 'good': return 1.08;
+      case 'moderate': return 1.0;
+      case 'beginner': return 0.92;
+      default: return 1.0;
+    }
+  }
+
+  /**
+   * Get inflation rate for a specific year
+   */
+  private static getInflationRate(year: number): number {
+    return this.INDIAN_INFLATION_RATES[year] || this.INDIAN_INFLATION_RATES.default;
+  }
+}
