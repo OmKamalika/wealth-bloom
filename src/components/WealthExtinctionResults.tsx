@@ -120,9 +120,21 @@ const WealthExtinctionResults: React.FC<{
     if (direction === 'up') {
       if (currentPage === 'emergency') setCurrentPage('testimonial');
       else if (currentPage === 'testimonial') setCurrentPage('stats');
+      else if (currentPage === 'stats') onGetProtectionPlan(); // Proceed to next page on swipe up from last page
     } else if (direction === 'down') {
       if (currentPage === 'stats') setCurrentPage('testimonial');
       else if (currentPage === 'testimonial') setCurrentPage('emergency');
+    }
+  };
+
+  // Handle click anywhere on the screen
+  const handleScreenClick = () => {
+    if (currentPage === 'emergency') {
+      setCurrentPage('testimonial');
+    } else if (currentPage === 'testimonial') {
+      setCurrentPage('stats');
+    } else if (currentPage === 'stats') {
+      onGetProtectionPlan();
     }
   };
 
@@ -161,7 +173,7 @@ const WealthExtinctionResults: React.FC<{
 
   // Emergency page (first screen)
   const renderEmergencyPage = () => (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col" onClick={handleScreenClick}>
       <div className="text-center pt-6">
         <h1 className="text-purple-600 text-xl font-medium">FamilyPe</h1>
       </div>
@@ -201,7 +213,7 @@ const WealthExtinctionResults: React.FC<{
 
   // Testimonial page (second screen)
   const renderTestimonialPage = () => (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col" onClick={handleScreenClick}>
       <div className="flex items-center justify-center gap-2 pt-6 pb-4">
         <Heart className="w-8 h-8 text-red-500 fill-red-500" />
         <h2 className="text-4xl font-bold">You're Not Alone</h2>
@@ -245,20 +257,17 @@ const WealthExtinctionResults: React.FC<{
           <div className="text-yellow-500 text-3xl">⚡</div>
         </div>
         
-        <button 
-          onClick={onGetProtectionPlan}
-          className="w-full flex items-center justify-center gap-2 text-xl font-medium text-yellow-600 py-3"
-        >
+        <div className="w-full flex items-center justify-center gap-2 text-xl font-medium text-yellow-600 py-3">
           <span className="text-xl">👆</span>
           See how they do it
-        </button>
+        </div>
       </div>
     </div>
   );
 
   // Stats page (third screen)
   const renderStatsPage = () => (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col" onClick={handleScreenClick}>
       <div className="flex items-center justify-center gap-2 pt-6 pb-4">
         <Heart className="w-8 h-8 text-red-500 fill-red-500" />
         <h2 className="text-4xl font-bold">You're Not Alone</h2>
@@ -302,13 +311,10 @@ const WealthExtinctionResults: React.FC<{
           <div className="text-yellow-500 text-3xl">⚡</div>
         </div>
         
-        <button 
-          onClick={onGetProtectionPlan}
-          className="w-full flex items-center justify-center gap-2 text-xl font-medium text-yellow-600 py-3"
-        >
+        <div className="w-full flex items-center justify-center gap-2 text-xl font-medium text-yellow-600 py-3">
           <span className="text-xl">👆</span>
           See how they do it
-        </button>
+        </div>
       </div>
     </div>
   );
