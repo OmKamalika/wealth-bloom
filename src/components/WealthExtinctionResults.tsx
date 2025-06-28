@@ -178,7 +178,7 @@ const WealthExtinctionResults: React.FC<{
         <h1 className="text-purple-600 text-xl font-medium">FamilyPe</h1>
       </div>
       
-      <div className="flex flex-col items-center justify-center text-center px-6 pt-10 pb-6">
+      <div className="flex flex-col items-center justify-center text-center px-6 pt-10 pb-6 flex-grow">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center">
             <AlertTriangle className="w-6 h-6 text-black" />
@@ -219,8 +219,8 @@ const WealthExtinctionResults: React.FC<{
         <h2 className="text-4xl font-bold">You're Not Alone</h2>
       </div>
       
-      <div className="px-6 py-4">
-        <div className="bg-gradient-to-br from-green-100 to-teal-100 rounded-2xl overflow-hidden">
+      <div className="px-6 py-4 flex-grow flex flex-col">
+        <div className="bg-gradient-to-br from-green-100 to-teal-100 rounded-2xl overflow-hidden mb-auto">
           <div className="relative p-6">
             <div className="absolute top-10 right-10 w-32 h-32 bg-orange-200 rounded-full opacity-70"></div>
             <div className="relative z-10">
@@ -239,27 +239,27 @@ const WealthExtinctionResults: React.FC<{
             </div>
           </div>
         </div>
-      </div>
-      
-      <div className="px-6 py-4">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-6 h-6 bg-green-500 rounded-sm"></div>
-          <p className="text-xl font-bold">70% of families face this</p>
-        </div>
         
-        <p className="text-xl font-bold text-center mb-6">
-          But the 30% who plan ahead extend their timeline by:
-        </p>
-        
-        <div className="flex items-center justify-center gap-4 mb-6">
-          <div className="text-yellow-500 text-3xl">⚡</div>
-          <div className="text-5xl font-black">8.3 YEARS</div>
-          <div className="text-yellow-500 text-3xl">⚡</div>
-        </div>
-        
-        <div className="w-full flex items-center justify-center gap-2 text-xl font-medium text-yellow-600 py-3">
-          <span className="text-xl">👆</span>
-          See how they do it
+        <div className="mt-auto">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-6 h-6 bg-green-500 rounded-sm"></div>
+            <p className="text-xl font-bold">70% of families face this</p>
+          </div>
+          
+          <p className="text-xl font-bold text-center mb-6">
+            But the 30% who plan ahead extend their timeline by:
+          </p>
+          
+          <div className="flex items-center justify-center gap-4 mb-6">
+            <div className="text-yellow-500 text-3xl">⚡</div>
+            <div className="text-5xl font-black">8.3 YEARS</div>
+            <div className="text-yellow-500 text-3xl">⚡</div>
+          </div>
+          
+          <div className="w-full flex items-center justify-center gap-2 text-xl font-medium text-yellow-600 py-3">
+            <span className="text-xl">👆</span>
+            See how they do it
+          </div>
         </div>
       </div>
     </div>
@@ -273,8 +273,8 @@ const WealthExtinctionResults: React.FC<{
         <h2 className="text-4xl font-bold">You're Not Alone</h2>
       </div>
       
-      <div className="px-6 py-4">
-        <div className="bg-gradient-to-br from-green-100 to-teal-100 rounded-2xl overflow-hidden">
+      <div className="px-6 py-4 flex-grow flex flex-col">
+        <div className="bg-gradient-to-br from-green-100 to-teal-100 rounded-2xl overflow-hidden mb-auto">
           <div className="relative p-6">
             <div className="absolute top-10 right-10 w-32 h-32 bg-orange-200 rounded-full opacity-70"></div>
             <div className="relative z-10">
@@ -293,27 +293,27 @@ const WealthExtinctionResults: React.FC<{
             </div>
           </div>
         </div>
-      </div>
-      
-      <div className="px-6 py-4">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-6 h-6 bg-green-500 rounded-sm"></div>
-          <p className="text-xl font-bold">70% of families face this</p>
-        </div>
         
-        <p className="text-xl font-bold text-center mb-6">
-          But the 30% who plan ahead extend their timeline by:
-        </p>
-        
-        <div className="flex items-center justify-center gap-4 mb-6">
-          <div className="text-yellow-500 text-3xl">⚡</div>
-          <div className="text-5xl font-black">8.3 YEARS</div>
-          <div className="text-yellow-500 text-3xl">⚡</div>
-        </div>
-        
-        <div className="w-full flex items-center justify-center gap-2 text-xl font-medium text-yellow-600 py-3">
-          <span className="text-xl">👆</span>
-          See how they do it
+        <div className="mt-auto">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-6 h-6 bg-green-500 rounded-sm"></div>
+            <p className="text-xl font-bold">70% of families face this</p>
+          </div>
+          
+          <p className="text-xl font-bold text-center mb-6">
+            But the 30% who plan ahead extend their timeline by:
+          </p>
+          
+          <div className="flex items-center justify-center gap-4 mb-6">
+            <div className="text-yellow-500 text-3xl">⚡</div>
+            <div className="text-5xl font-black">8.3 YEARS</div>
+            <div className="text-yellow-500 text-3xl">⚡</div>
+          </div>
+          
+          <div className="w-full flex items-center justify-center gap-2 text-xl font-medium text-yellow-600 py-3">
+            <span className="text-xl">👆</span>
+            See how they do it
+          </div>
         </div>
       </div>
     </div>
