@@ -247,6 +247,7 @@ const WealthResultsScreen: React.FC<WealthResultsScreenProps> = ({
           </button>
         </div>
       </div>
+      
 
       {/* Social Share Modal */}
       {showShareModal && (
