@@ -1,7 +1,7 @@
 // wealthCalculations.ts - Advanced Wealth Extinction Calculation Engine
 // Implementation of the sophisticated financial modeling described in specifications
 
-interface CalculationInputs {
+export interface CalculationInputs {
   userProfile: {
     age: number;
     maritalStatus: string;
@@ -36,7 +36,7 @@ interface CalculationInputs {
   complexityScore: number;
 }
 
-interface WealthProjection {
+export interface WealthProjection {
   year: number;
   age: number;
   wealth: number;
@@ -47,7 +47,7 @@ interface WealthProjection {
   confidenceLevel: number;
 }
 
-interface CalculationResults {
+export interface CalculationResults {
   extinctionYear: number;
   yearsRemaining: number;
   currentWealth: number;

@@ -5,6 +5,50 @@ import { CalculationInputs } from './wealthCalculations';
 import { CalculatorData } from '../types/calculator';
 
 /**
+ * Converts CalculatorData (frontend format) to CalculationInputs (calculation engine format)
+ * This is the main adapter function we need for the server
+ */
+export function adaptFromCalculatorData(calculatorData: CalculatorData): CalculationInputs {
+  return {
+    userProfile: {
+      age: calculatorData.coreIdentity.age,
+      maritalStatus: calculatorData.coreIdentity.maritalStatus,
+      location: {
+        zipCode: calculatorData.coreIdentity.location.zipCode || '10001', // Default if not provided
+        state: calculatorData.coreIdentity.location.state || 'NY'
+      },
+      healthStatus: 'good' // Default as this isn't in CalculatorData
+    },
+    familyStructure: {
+      children: calculatorData.childrenContext.children.map(child => ({
+        name: child.name,
+        age: child.age,
+        academicPerformance: child.academicPerformance,
+        educationPath: child.educationAspirations
+      })),
+      parents: calculatorData.familyCareContext.parents.map(parent => ({
+        age: parent.age,
+        healthStatus: parent.healthStatus,
+        financialStatus: parent.financialIndependence,
+        location: parent.location || 'same_city'
+      })),
+      siblings: calculatorData.familyCareContext.siblings.map(sibling => ({
+        relationshipQuality: sibling.relationshipQuality,
+        financialCapacity: sibling.financialCapacity,
+        careWillingness: sibling.careInvolvement
+      }))
+    },
+    financialProfile: {
+      netWorth: calculatorData.financialFoundation.currentNetWorth,
+      income: calculatorData.financialFoundation.annualIncome,
+      expenses: calculatorData.financialFoundation.annualIncome * 0.7, // Estimate expenses as 70% of income
+      riskTolerance: calculatorData.behavioralProfile.riskTolerance
+    },
+    complexityScore: calculatorData.complexityAnalysis.complexityScore
+  };
+}
+
+/**
  * Converts the existing CalculationInputs format to the new CalculatorData format
  * required by the advanced wealth calculation engine
  */
@@ -13,7 +57,7 @@ export function adaptToAdvancedEngine(inputs: CalculationInputs): CalculatorData
     coreIdentity: {
       age: inputs.userProfile.age,
       gender: 'prefer_not_to_say', // Default as this isn't in old model
-      maritalStatus: inputs.userProfile.maritalStatus,
+      maritalStatus: inputs.userProfile.maritalStatus as 'single' | 'married' | 'divorced' | 'widowed',
       location: {
         state: inputs.userProfile.location.state,
         city: '', // Not available in old model
@@ -43,7 +87,7 @@ export function adaptToAdvancedEngine(inputs: CalculationInputs): CalculatorData
       }
     },
     childrenContext: {
-      children: inputs.familyStructure.children.map(child => ({
+      children: inputs.familyStructure.children.map((child: any) => ({
         name: child.name,
         age: child.age,
         academicPerformance: mapAcademicPerformance(child.academicPerformance),
@@ -53,7 +97,7 @@ export function adaptToAdvancedEngine(inputs: CalculationInputs): CalculatorData
       }))
     },
     familyCareContext: {
-      parents: inputs.familyStructure.parents.map(parent => ({
+      parents: inputs.familyStructure.parents.map((parent: any) => ({
         name: parent.financialStatus, // Using this field as name isn't available
         age: parent.age,
         healthStatus: mapHealthStatus(parent.healthStatus),
@@ -63,7 +107,7 @@ export function adaptToAdvancedEngine(inputs: CalculationInputs): CalculatorData
         location: parent.location
       })),
       spouseParents: [], // Not available in old model
-      siblings: inputs.familyStructure.siblings.map(sibling => ({
+      siblings: inputs.familyStructure.siblings.map((sibling: any) => ({
         relationshipQuality: mapRelationshipQuality(sibling.relationshipQuality),
         financialCapacity: mapFinancialCapacity(sibling.financialCapacity),
         careInvolvement: mapCareWillingness(sibling.careWillingness)
@@ -71,7 +115,7 @@ export function adaptToAdvancedEngine(inputs: CalculationInputs): CalculatorData
       familyCoordination: 'good' // Default value
     },
     behavioralProfile: {
-      riskTolerance: inputs.financialProfile.riskTolerance,
+      riskTolerance: inputs.financialProfile.riskTolerance as 'conservative' | 'moderate' | 'aggressive',
       marketCrashResponse: 'worry_hold', // Default value
       biggestFear: 'burden_children', // Default value
       planningApproach: 'important_overwhelming', // Default value
@@ -101,7 +145,7 @@ export function adaptAdvancedResults(advancedResults: any): any {
     childrenInheritance: advancedResults.childrenInheritance,
     grandchildrenInheritance: advancedResults.grandchildrenInheritance,
     projections: advancedResults.projections,
-    topWealthDestroyers: advancedResults.topWealthDestroyers.map(destroyer => ({
+    topWealthDestroyers: advancedResults.topWealthDestroyers.map((destroyer: any) => ({
       factor: destroyer.factor,
       impact: destroyer.impact,
       description: destroyer.description
@@ -110,7 +154,7 @@ export function adaptAdvancedResults(advancedResults: any): any {
       today: advancedResults.familyImpact.today,
       inheritance: {
         year: advancedResults.familyImpact.inheritance.year,
-        children: advancedResults.familyImpact.inheritance.children.map(child => ({
+        children: advancedResults.familyImpact.inheritance.children.map((child: any) => ({
           name: child.name,
           inheritance: child.inheritance
         }))
@@ -121,14 +165,16 @@ export function adaptAdvancedResults(advancedResults: any): any {
       extinctionYear: advancedResults.protectedScenario.extinctionYear,
       additionalYears: advancedResults.protectedScenario.additionalYears,
       grandchildrenInheritance: advancedResults.protectedScenario.grandchildrenInheritance,
-      improvements: advancedResults.protectedScenario.improvements.map(improvement => improvement.action)
+      improvements: Array.isArray(advancedResults.protectedScenario.improvements) 
+        ? advancedResults.protectedScenario.improvements 
+        : [advancedResults.protectedScenario.improvements]
     },
     complexityAnalysis: {
       score: advancedResults.complexityAnalysis.score,
       primaryComplexityDrivers: advancedResults.complexityAnalysis.primaryComplexityDrivers,
-      coordinationOpportunities: advancedResults.complexityAnalysis.coordinationOpportunities.map(
-        opportunity => opportunity.opportunity
-      ),
+      coordinationOpportunities: Array.isArray(advancedResults.complexityAnalysis.coordinationOpportunities)
+        ? advancedResults.complexityAnalysis.coordinationOpportunities
+        : [advancedResults.complexityAnalysis.coordinationOpportunities],
       optimizationPotential: advancedResults.complexityAnalysis.optimizationPotential
     },
     scenarioAnalysis: {

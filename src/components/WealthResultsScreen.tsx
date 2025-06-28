@@ -20,13 +20,35 @@ const WealthResultsScreen: React.FC<WealthResultsScreenProps> = ({
   const [showShareModal, setShowShareModal] = useState(false);
   const [showFullResults, setShowFullResults] = useState(false);
 
-  const { inputs, results } = calculatorData;
-  const childrenNames = inputs.childrenNames.filter((name: string) => name.trim() !== '');
+  // Debug logging
+  console.log('🎯 WealthResultsScreen received calculatorData:', calculatorData);
+
+  // Safely extract data with fallbacks
+  const { inputs, results } = calculatorData || {};
+  
+  console.log('📊 Extracted inputs:', inputs);
+  console.log('📊 Extracted results:', results);
+  
+  // Get children names from the correct data structure
+  const childrenNames = inputs?.childrenContext?.children?.map((child: any) => child.name) || 
+                       inputs?.childrenNames || 
+                       ['Child 1', 'Child 2']; // Fallback names
+  
+  // Get net worth from the correct field
+  const netWorth = inputs?.financialFoundation?.currentNetWorth || 
+                   inputs?.netWorth || 
+                   results?.currentWealth || 
+                   0;
+
+  console.log('👶 Children names:', childrenNames);
+  console.log('💰 Net worth:', netWorth);
 
   useEffect(() => {
     // Track results view
-    analytics.trackCalculatorComplete(inputs, results);
-  }, []);
+    if (inputs && results) {
+      analytics.trackCalculatorComplete(inputs, results);
+    }
+  }, [inputs, results]);
 
   const handleAnimationComplete = () => {
     setShowAnimatedReveal(false);
@@ -46,7 +68,7 @@ const WealthResultsScreen: React.FC<WealthResultsScreenProps> = ({
 
   const handleGetProtectionPlan = () => {
     analytics.track('protection_plan_requested', {
-      extinction_year: results.extinctionYear,
+      extinction_year: results?.extinctionYear,
       emotional_state: analytics.getEmotionalMetrics()
     });
     onGetProtectionPlan();
@@ -63,6 +85,35 @@ const WealthResultsScreen: React.FC<WealthResultsScreenProps> = ({
     );
   }
 
+  // Safety check for required data
+  if (!results || !inputs) {
+    console.error('❌ Missing required data for results screen:');
+    console.error('  - results:', results);
+    console.error('  - inputs:', inputs);
+    console.error('  - calculatorData:', calculatorData);
+    
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">No Results Available</h2>
+          <p className="text-gray-600 mb-6">Please complete the calculator first.</p>
+          <div className="text-sm text-gray-500 mb-4">
+            <p>Debug info:</p>
+            <p>Has calculatorData: {calculatorData ? 'Yes' : 'No'}</p>
+            <p>Has inputs: {inputs ? 'Yes' : 'No'}</p>
+            <p>Has results: {results ? 'Yes' : 'No'}</p>
+          </div>
+          <button
+            onClick={onStartOver}
+            className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700"
+          >
+            Start Calculator
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -72,7 +123,7 @@ const WealthResultsScreen: React.FC<WealthResultsScreenProps> = ({
           <span className="text-red-600 font-bold">WEALTH EXTINCTION ALERT</span>
         </div>
         <p className="text-sm text-red-700">
-          Your family wealth dies in {results.extinctionYear} • Children inherit ${results.childrenInheritance.toLocaleString()} each • Grandchildren inherit $0
+          Your family wealth dies in {results.extinctionYear} • Children inherit ₹{(results.childrenInheritance/100000).toFixed(1)}L each • Grandchildren inherit ₹{(results.grandchildrenInheritance/100000).toFixed(1)}L
         </p>
       </div>
 
@@ -81,12 +132,12 @@ const WealthResultsScreen: React.FC<WealthResultsScreenProps> = ({
         {/* Interactive Timeline */}
         <div className="mb-8">
           <InteractiveWealthTimeline
-            projections={results.projections}
+            projections={results.projections || []}
             extinctionYear={results.extinctionYear}
-            currentWealth={inputs.netWorth}
+            currentWealth={netWorth}
             protectedScenario={{
-              extinctionYear: results.protectedScenario.extinctionYear,
-              projections: results.projections.map(p => ({
+              extinctionYear: results.protectedScenario?.extinctionYear || results.extinctionYear + 5,
+              projections: (results.projections || []).map((p: any) => ({
                 ...p,
                 wealth: p.wealth * 1.3 // Simulate protected scenario
               }))
@@ -98,16 +149,16 @@ const WealthResultsScreen: React.FC<WealthResultsScreenProps> = ({
         <div className="mb-8">
           <h3 className="text-lg font-bold text-gray-900 mb-4">What's Killing Your Wealth?</h3>
           <div className="space-y-4">
-            {results.topWealthDestroyers.map((destroyer: any, index: number) => (
-              <div key={destroyer.id} className="bg-red-50 rounded-2xl p-4">
+            {(results.topWealthDestroyers || []).map((destroyer: any, index: number) => (
+              <div key={index} className="bg-red-50 rounded-2xl p-4">
                 <div className="flex items-start gap-3">
-                  <span className="text-2xl">{destroyer.icon}</span>
+                  <span className="text-2xl">⚠️</span>
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-bold text-gray-900">{destroyer.title}</h4>
+                      <h4 className="font-bold text-gray-900">{destroyer.factor}</h4>
                       <div className="text-right">
-                        <div className="font-bold text-red-600">${destroyer.amount.toLocaleString()}</div>
-                        <div className="text-sm text-red-500">({destroyer.percentage}% of loss)</div>
+                        <div className="font-bold text-red-600">₹{(destroyer.impact/100000).toFixed(1)}L</div>
+                        <div className="text-sm text-red-500">({(destroyer.impact * 100).toFixed(1)}% impact)</div>
                       </div>
                     </div>
                     <p className="text-sm text-gray-600">{destroyer.description}</p>
@@ -127,7 +178,7 @@ const WealthResultsScreen: React.FC<WealthResultsScreenProps> = ({
               <div className="space-y-2">
                 <p className="flex items-center gap-2">
                   <span className="text-2xl">👨‍👩‍👧‍👦</span>
-                  <span>Net Worth: ${inputs.netWorth.toLocaleString()}</span>
+                  <span>Net Worth: ₹{(netWorth/100000).toFixed(1)}L</span>
                 </p>
                 <p className="text-green-700">Feeling secure</p>
               </div>
@@ -138,7 +189,7 @@ const WealthResultsScreen: React.FC<WealthResultsScreenProps> = ({
                 {childrenNames.map((name: string, index: number) => (
                   <p key={index} className="flex items-center gap-2">
                     <span className="text-2xl">{index === 0 ? '👧' : '👦'}</span>
-                    <span>{name} receives: ${results.childrenInheritance.toLocaleString()}</span>
+                    <span>{name} receives: ₹{(results.childrenInheritance/100000).toFixed(1)}L</span>
                   </p>
                 ))}
                 <p className="text-red-700">"Why so little, Dad?"</p>
@@ -154,12 +205,12 @@ const WealthResultsScreen: React.FC<WealthResultsScreenProps> = ({
             <div className="bg-red-50 rounded-2xl p-4 text-center">
               <h4 className="font-bold text-red-800 mb-2">WITHOUT PROTECTION</h4>
               <p className="text-sm text-red-600">Extinction: {results.extinctionYear}</p>
-              <p className="text-sm text-red-600">Grandchildren get: $0</p>
+              <p className="text-sm text-red-600">Grandchildren get: ₹{(results.grandchildrenInheritance/100000).toFixed(1)}L</p>
             </div>
             <div className="bg-green-50 rounded-2xl p-4 text-center">
               <h4 className="font-bold text-green-800 mb-2">WITH PROTECTION</h4>
-              <p className="text-sm text-green-600">Wealth Extends: {results.protectedScenario.extinctionYear}+</p>
-              <p className="text-sm text-green-600">Grandchildren get: ${results.protectedScenario.grandchildrenInheritance.toLocaleString()}</p>
+              <p className="text-sm text-green-600">Wealth Extends: {results.protectedScenario?.extinctionYear || results.extinctionYear + 5}+</p>
+              <p className="text-sm text-green-600">Grandchildren get: ₹{(results.protectedScenario?.grandchildrenInheritance/100000).toFixed(1)}L</p>
             </div>
           </div>
         </div>
@@ -198,11 +249,13 @@ const WealthResultsScreen: React.FC<WealthResultsScreenProps> = ({
       </div>
 
       {/* Social Share Modal */}
-      <SocialShareModal
-        isOpen={showShareModal}
-        onClose={() => setShowShareModal(false)}
-        calculatorData={calculatorData}
-      />
+      {showShareModal && (
+        <SocialShareModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          calculatorData={calculatorData}
+        />
+      )}
     </div>
   );
 };

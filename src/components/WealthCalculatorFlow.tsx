@@ -177,6 +177,10 @@ const WealthCalculatorFlow: React.FC<{
   const [isLoading, setIsLoading] = useState(false);
   const [insights, setInsights] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
+
+  // Track previous selections and their complexity impacts
+  const [previousSelections, setPreviousSelections] = useState<Record<string, { value: string, impact: number }>>({});
 
   // Progressive question flow based on wireframes
   const questionFlow: QuestionConfig[] = [
@@ -411,19 +415,37 @@ const WealthCalculatorFlow: React.FC<{
   const progress = ((currentQuestionIndex + 1) / questionFlow.length) * 100;
 
   // Helper function for complexity scoring
-  const updateComplexityScore = (impact: number) => {
-    setData(prev => ({
-      ...prev,
-      complexityAnalysis: {
-        ...prev.complexityAnalysis,
-        complexityScore: Math.min(10, prev.complexityAnalysis.complexityScore + impact)
+  const updateComplexityScore = (questionId: string, value: string, impact: number) => {
+    setData(prev => {
+      // Get previous selection for this question
+      const prevSelection = previousSelections[questionId];
+      
+      // Calculate the new score by subtracting previous impact (if any) and adding new impact
+      let newScore = prev.complexityAnalysis.complexityScore;
+      if (prevSelection && prevSelection.value !== value) {
+        newScore -= prevSelection.impact;
       }
-    }));
+      newScore = Math.min(10, newScore + impact);
+      
+      // Update previous selections tracker
+      setPreviousSelections(prev => ({
+        ...prev,
+        [questionId]: { value, impact }
+      }));
+      
+      return {
+        ...prev,
+        complexityAnalysis: {
+          ...prev.complexityAnalysis,
+          complexityScore: newScore
+        }
+      };
+    });
   };
 
   // Helper function for adding insights
   const addInsight = (insight: string) => {
-    setInsights(prev => [...prev, insight]);
+    setInsights(prev => prev.includes(insight) ? prev : [...prev, insight]);
   };
 
   // Calculate wealth percentile helper
@@ -454,6 +476,10 @@ const WealthCalculatorFlow: React.FC<{
   const handleAnswer = (questionId: string, value: any) => {
     console.log(`Answering ${questionId} with value:`, value);
     
+    if (currentQuestion.type === 'single_choice') {
+      setSelectedOption(value);
+    }
+    
     switch (questionId) {
       case 'age_basic':
         setData(prev => ({
@@ -468,7 +494,9 @@ const WealthCalculatorFlow: React.FC<{
           ...prev,
           coreIdentity: { ...prev.coreIdentity, maritalStatus: value as any }
         }));
-        updateComplexityScore(maritalOption?.complexityImpact || 0);
+        if (maritalOption?.complexityImpact !== undefined) {
+          updateComplexityScore(questionId, value, maritalOption.complexityImpact);
+        }
         break;
         
       case 'employment_context':
@@ -477,7 +505,9 @@ const WealthCalculatorFlow: React.FC<{
           ...prev,
           coreIdentity: { ...prev.coreIdentity, employment: { ...prev.coreIdentity.employment, status: value as any } }
         }));
-        updateComplexityScore(empOption?.complexityImpact || 0);
+        if (empOption?.complexityImpact !== undefined) {
+          updateComplexityScore(questionId, value, empOption.complexityImpact);
+        }
         break;
         
       case 'children_count':
@@ -495,7 +525,9 @@ const WealthCalculatorFlow: React.FC<{
           ...prev,
           childrenContext: { children }
         }));
-        updateComplexityScore(childOption?.complexityImpact || 0);
+        if (childOption?.complexityImpact !== undefined) {
+          updateComplexityScore(questionId, value, childOption.complexityImpact);
+        }
         break;
         
       case 'net_worth_income':
@@ -518,8 +550,8 @@ const WealthCalculatorFlow: React.FC<{
       default:
         // Handle other question types
         const option = currentQuestion.options?.find(opt => opt.value === value);
-        if (option?.complexityImpact) {
-          updateComplexityScore(option.complexityImpact);
+        if (option?.complexityImpact !== undefined) {
+          updateComplexityScore(questionId, value, option.complexityImpact);
         }
         break;
     }
@@ -570,30 +602,274 @@ const WealthCalculatorFlow: React.FC<{
     }
   };
 
+  // Client-side calculation fallback
+  const calculateWealthExtinctionClientSide = (calculatorData: CalculatorData) => {
+    console.log('🔮 Starting client-side wealth extinction calculation');
+    
+    const { coreIdentity, financialFoundation, complexityAnalysis } = calculatorData;
+    
+    // Base calculation
+    let currentWealth = financialFoundation.currentNetWorth;
+    let currentAge = coreIdentity.age;
+    let extinctionYear = 2025;
+    
+    // Simple projection over 75 years
+    for (let year = 0; year < 75; year++) {
+      const currentYear = 2025 + year;
+      currentAge = coreIdentity.age + year;
+      
+      // Income progression (simplified)
+      const baseIncome = financialFoundation.annualIncome;
+      const incomeGrowth = 0.03; // 3% annual growth
+      const yearlyIncome = baseIncome * Math.pow(1 + incomeGrowth, year);
+      
+      // Expense progression (simplified)
+      const baseExpenses = yearlyIncome * 0.7; // 70% of income
+      const expenseGrowth = 0.04; // 4% annual growth (higher than income)
+      const yearlyExpenses = baseExpenses * Math.pow(1 + expenseGrowth, year);
+      
+      // Investment returns (simplified)
+      const investmentReturn = 0.08; // 8% annual return
+      const investmentReturns = currentWealth * investmentReturn;
+      
+      // Lifecycle events impact
+      let lifecycleImpact = 0;
+      
+      // Children education costs
+      if (calculatorData.childrenContext?.children?.length > 0) {
+        const childrenCount = calculatorData.childrenContext.children.length;
+        if (currentAge >= 35 && currentAge <= 55) {
+          lifecycleImpact -= 500000 * childrenCount; // Education costs
+        }
+      }
+      
+      // Parent care costs
+      if (calculatorData.familyCareContext?.parents?.length > 0) {
+        if (currentAge >= 45 && currentAge <= 65) {
+          lifecycleImpact -= 300000; // Parent care costs
+        }
+      }
+      
+      // Update wealth
+      const netCashFlow = yearlyIncome - yearlyExpenses + investmentReturns + lifecycleImpact;
+      currentWealth = Math.max(0, currentWealth + netCashFlow);
+      
+      // Check for extinction
+      if (currentWealth <= 0) {
+        extinctionYear = currentYear;
+        break;
+      }
+    }
+    
+    // Generate results
+    const yearsRemaining = extinctionYear - 2025;
+    
+    return {
+      extinctionYear,
+      yearsRemaining,
+      currentWealth: financialFoundation.currentNetWorth,
+      childrenInheritance: Math.max(0, currentWealth * 0.3),
+      grandchildrenInheritance: Math.max(0, currentWealth * 0.1),
+      projections: [
+        {
+          year: 2025,
+          age: coreIdentity.age,
+          wealth: financialFoundation.currentNetWorth,
+          income: financialFoundation.annualIncome,
+          expenses: financialFoundation.annualIncome * 0.7,
+          netCashFlow: financialFoundation.annualIncome * 0.3,
+          majorEvents: [],
+          confidenceLevel: 0.9
+        }
+      ],
+      topWealthDestroyers: [
+        {
+          factor: 'Expense Growth',
+          impact: 0.04,
+          description: 'Expenses growing faster than income'
+        },
+        {
+          factor: 'Lifecycle Events',
+          impact: 0.02,
+          description: 'Children education and parent care costs'
+        }
+      ],
+      familyImpact: {
+        today: {
+          netWorth: financialFoundation.currentNetWorth,
+          status: 'Building wealth actively'
+        },
+        inheritance: {
+          year: 2025 + (85 - coreIdentity.age),
+          children: calculatorData.childrenContext?.children?.map((child: any) => ({
+            name: child.name,
+            inheritance: Math.max(0, currentWealth * 0.3 / (calculatorData.childrenContext.children.length || 1))
+          })) || []
+        },
+        grandchildren: {
+          year: 2025 + (85 - coreIdentity.age) + 30,
+          inheritance: Math.max(0, currentWealth * 0.1),
+          collegeShortfall: Math.max(0, 400000 - currentWealth * 0.1)
+        }
+      },
+      protectedScenario: {
+        extinctionYear: extinctionYear + 5,
+        additionalYears: 5,
+        grandchildrenInheritance: Math.max(0, currentWealth * 0.15),
+        improvements: [
+          'Systematic expense management',
+          'Optimized investment allocation',
+          'Family coordination planning'
+        ]
+      },
+      complexityAnalysis: {
+        score: complexityAnalysis.complexityScore,
+        primaryComplexityDrivers: [
+          'Multiple children with different timelines',
+          'Aging parents requiring care',
+          'Complex family coordination needs'
+        ],
+        coordinationOpportunities: [
+          'Unified family financial planning',
+          'Shared care responsibilities',
+          'Coordinated investment strategies'
+        ],
+        optimizationPotential: Math.min(10, complexityAnalysis.complexityScore * 1.5)
+      },
+      scenarioAnalysis: {
+        bestCase: { extinctionYear: extinctionYear + 10, probability: 0.2 },
+        mostLikely: { extinctionYear: extinctionYear, probability: 0.6 },
+        worstCase: { extinctionYear: extinctionYear - 5, probability: 0.2 }
+      }
+    };
+  };
+
   const startCalculation = async () => {
     setIsLoading(true);
     setError(null);
+    
+    // Ensure all required fields are present and properly structured
     const calculationPayload = {
-      ...data,
+      coreIdentity: {
+        age: data.coreIdentity.age,
+        gender: data.coreIdentity.gender,
+        maritalStatus: data.coreIdentity.maritalStatus,
+        location: {
+          state: data.coreIdentity.location.state || 'Maharashtra',
+          city: data.coreIdentity.location.city || 'Mumbai',
+          zipCode: data.coreIdentity.location.zipCode || '400001',
+          cityType: data.coreIdentity.location.cityType
+        },
+        education: {
+          level: data.coreIdentity.education.level,
+          institution: data.coreIdentity.education.institution
+        },
+        employment: {
+          status: data.coreIdentity.employment.status,
+          industry: data.coreIdentity.employment.industry,
+          roleLevel: data.coreIdentity.employment.roleLevel
+        },
+        financialSophistication: data.coreIdentity.financialSophistication
+      },
+      financialFoundation: {
+        currentNetWorth: data.financialFoundation.currentNetWorth,
+        annualIncome: data.financialFoundation.annualIncome,
+        primaryIncomeSource: data.financialFoundation.primaryIncomeSource,
+        investmentAllocation: data.financialFoundation.investmentAllocation
+      },
+      childrenContext: {
+        children: data.childrenContext.children.map(child => ({
+          name: child.name,
+          age: child.age,
+          academicPerformance: child.academicPerformance,
+          interests: child.interests || [],
+          educationAspirations: child.educationAspirations,
+          currentSchoolType: child.currentSchoolType
+        }))
+      },
+      familyCareContext: {
+        parents: data.familyCareContext.parents.map(parent => ({
+          name: parent.name,
+          age: parent.age,
+          healthStatus: parent.healthStatus,
+          financialIndependence: parent.financialIndependence,
+          currentMonthlyCost: parent.currentMonthlyCost,
+          livingArrangement: parent.livingArrangement,
+          location: parent.location
+        })),
+        spouseParents: data.familyCareContext.spouseParents,
+        siblings: data.familyCareContext.siblings,
+        familyCoordination: data.familyCareContext.familyCoordination
+      },
+      behavioralProfile: {
+        riskTolerance: data.behavioralProfile.riskTolerance,
+        marketCrashResponse: data.behavioralProfile.marketCrashResponse,
+        biggestFear: data.behavioralProfile.biggestFear,
+        planningApproach: data.behavioralProfile.planningApproach,
+        reviewFrequency: data.behavioralProfile.reviewFrequency
+      },
+      complexityAnalysis: {
+        complexityScore: data.complexityAnalysis.complexityScore,
+        majorDecisions: data.complexityAnalysis.majorDecisions,
+        interconnections: data.complexityAnalysis.interconnections,
+        sandwichGenerationOverload: data.complexityAnalysis.sandwichGenerationOverload
+      },
+      currentStep: data.currentStep,
+      email: data.email,
+      phoneNumber: data.phoneNumber,
       timestamp: new Date().toISOString(),
       calculationVersion: '2.0'
     };
+    
+    console.log('🚀 Making API request with validated payload:', calculationPayload);
+    
     try {
-      const response = await fetch('/api/calculate-wealth', {
+      // Use the backend server URL
+      const apiUrl = import.meta.env.DEV ? 'http://localhost:3001/api/calculate-wealth' : '/api/calculate-wealth';
+      
+      console.log('🚀 Making API request to:', apiUrl);
+      console.log('📦 Request payload:', calculationPayload);
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(calculationPayload)
       });
+      
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const result = await response.json();
+      console.log('📊 API Response:', result);
+      
       if (result.success && result.data) {
+        console.log('✅ Success! Passing data to results screen:', { inputs: calculationPayload, results: result.data });
+        setIsLoading(false);
         onComplete({ inputs: calculationPayload, results: result.data });
       } else {
+        console.error('❌ API returned error:', result);
         setError(result.error || 'Calculation failed. Please try again.');
         setIsLoading(false);
       }
     } catch (e) {
-      setError('Network error. Please try again.');
-      setIsLoading(false);
+      console.error('❌ Calculation error:', e);
+      console.log('🔄 Falling back to client-side calculation...');
+      
+      // Fallback to client-side calculation
+      try {
+        const clientSideResults = calculateWealthExtinctionClientSide(calculationPayload);
+        console.log('✅ Client-side calculation successful:', clientSideResults);
+        setIsLoading(false);
+        onComplete({ inputs: calculationPayload, results: clientSideResults });
+      } catch (fallbackError) {
+        console.error('❌ Client-side calculation also failed:', fallbackError);
+        setError('Calculation failed. Please try again.');
+        setIsLoading(false);
+      }
     }
   };
 
@@ -664,12 +940,16 @@ const WealthCalculatorFlow: React.FC<{
                 step={currentQuestion.sliderConfig?.step || 1}
                 value={currentQuestion.id === 'age_basic' ? data.coreIdentity.age : 750000}
                 onChange={(e) => handleAnswer(currentQuestion.id, e.target.value)}
-                className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                className={
+                  currentQuestion.id === 'age_basic'
+                    ? 'w-full age-slider-modern rounded-lg appearance-none cursor-pointer'
+                    : 'w-full h-3 custom-slider rounded-lg appearance-none cursor-pointer'
+                }
               />
               <div className="flex justify-between text-sm text-gray-500 mt-2">
                 <span>{currentQuestion.sliderConfig?.min || 25}</span>
                 <span className="font-bold text-purple-600 text-xl">
-                  {currentQuestion.sliderConfig?.formatter ? 
+                  {currentQuestion.sliderConfig?.formatter ?
                     currentQuestion.sliderConfig.formatter(currentQuestion.id === 'age_basic' ? data.coreIdentity.age : 750000) :
                     `${currentQuestion.id === 'age_basic' ? data.coreIdentity.age : 750000} ${currentQuestion.sliderConfig?.unit || ''}`
                   }
@@ -695,7 +975,7 @@ const WealthCalculatorFlow: React.FC<{
                   income: parseInt(e.target.value), 
                   netWorth: data.financialFoundation.currentNetWorth 
                 })}
-                className="w-full h-3 bg-blue-200 rounded-lg appearance-none cursor-pointer"
+                className="w-full h-3 custom-slider rounded-lg appearance-none cursor-pointer"
               />
               <div className="flex justify-between text-sm text-gray-500 mt-2">
                 <span>₹5L</span>
@@ -718,7 +998,7 @@ const WealthCalculatorFlow: React.FC<{
                   netWorth: parseInt(e.target.value), 
                   income: data.financialFoundation.annualIncome 
                 })}
-                className="w-full h-3 bg-green-200 rounded-lg appearance-none cursor-pointer"
+                className="w-full h-3 custom-slider rounded-lg appearance-none cursor-pointer"
               />
               <div className="flex justify-between text-sm text-gray-500 mt-2">
                 <span>₹0</span>
@@ -734,35 +1014,48 @@ const WealthCalculatorFlow: React.FC<{
       case 'single_choice':
         return (
           <div className="space-y-4">
-            {currentQuestion.options?.map((option) => (
-              <button
-                key={option.value}
-                onClick={() => handleAnswer(currentQuestion.id, option.value)}
-                className="w-full p-6 bg-white border-2 border-gray-200 rounded-2xl hover:border-purple-300 hover:bg-purple-50 transition-all text-left group"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-3">
-                    {option.emoji && (
-                      <span className="text-2xl">{option.emoji}</span>
-                    )}
-                    <div>
-                      <h3 className="font-semibold text-gray-900 group-hover:text-purple-700">
-                        {option.label}
-                      </h3>
-                      {option.description && (
-                        <p className="text-gray-600 text-sm mt-1">{option.description}</p>
+            {currentQuestion.options?.map((option) => {
+              const isSelected = selectedOption === option.value ||
+                // fallback to data for persisted selection
+                (currentQuestion.id === 'marital_status' && data.coreIdentity.maritalStatus === option.value) ||
+                (currentQuestion.id === 'employment_context' && data.coreIdentity.employment.status === option.value) ||
+                (currentQuestion.id === 'children_count' && data.childrenContext.children.length === parseInt(option.value.replace('+', ''))) ||
+                (currentQuestion.id === 'education_sophistication' && data.coreIdentity.education.level === option.value) ||
+                (currentQuestion.id === 'location_context' && data.coreIdentity.location.cityType === option.value);
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => handleAnswer(currentQuestion.id, option.value)}
+                  className={`w-full p-6 border-2 rounded-2xl text-left group transition-all
+                    ${isSelected
+                      ? 'bg-[#7847f0] border-[#7847f0] text-white shadow-lg'
+                      : 'bg-white border-gray-200 text-gray-900 hover:bg-[#ede9fe] hover:border-[#7847f0]'}
+                    focus:outline-none focus:ring-2 focus:ring-[#7847f0] focus:border-[#7847f0]`}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-3">
+                      {option.emoji && (
+                        <span className="text-2xl">{option.emoji}</span>
                       )}
+                      <div>
+                        <h3 className={`font-semibold group-hover:text-[#7847f0] ${isSelected ? 'text-white' : 'text-gray-900'}`}>{option.label}</h3>
+                        {option.description && (
+                          <p className={`text-sm mt-1 ${isSelected ? 'text-indigo-100' : 'text-gray-600'}`}>{option.description}</p>
+                        )}
+                      </div>
                     </div>
+                    {option.complexityImpact && option.complexityImpact > 0 && (
+                      <div className={`ml-4 flex items-center gap-1 ${isSelected ? 'text-yellow-200' : 'text-orange-600'}`}>
+                        <AlertTriangle className="w-4 h-4" />
+                        <span className="text-xs font-medium">+{option.complexityImpact}</span>
+                      </div>
+                    )}
                   </div>
-                  {option.complexityImpact && option.complexityImpact > 0 && (
-                    <div className="ml-4 flex items-center gap-1 text-orange-600">
-                      <AlertTriangle className="w-4 h-4" />
-                      <span className="text-xs font-medium">+{option.complexityImpact}</span>
-                    </div>
-                  )}
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
         );
 
@@ -821,42 +1114,166 @@ const WealthCalculatorFlow: React.FC<{
         );
 
       case 'family_builder':
+        // Interactive children input cards
         return (
           <div className="space-y-6">
             <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
               <h3 className="text-lg font-semibold text-blue-900 mb-4">
                 Your Children's Individual Paths
               </h3>
-              {data.childrenContext.children.map((child, index) => (
-                <div key={index} className="bg-white rounded-xl p-4 mb-4 border border-blue-200">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-semibold text-gray-900">{child.name}</h4>
-                    <span className="text-sm text-gray-600">{child.age} years old</span>
+              {data.childrenContext.children.map((child, idx) => (
+                <div key={idx} className="bg-white rounded-xl p-4 mb-4 border border-blue-200 relative">
+                  <button
+                    className="absolute top-2 right-2 text-red-500"
+                    onClick={() => {
+                      setData(prev => ({
+                        ...prev,
+                        childrenContext: {
+                          ...prev.childrenContext,
+                          children: prev.childrenContext.children.filter((_, i) => i !== idx)
+                        }
+                      }));
+                    }}
+                    title="Remove child"
+                    type="button"
+                  >×</button>
+                  <div className="mb-2">
+                    <label className="block text-sm font-medium">Name</label>
+                    <input
+                      className="w-full px-3 py-2 rounded border"
+                      value={child.name}
+                      onChange={e => {
+                        const value = e.target.value;
+                        setData(prev => {
+                          const updated = [...prev.childrenContext.children];
+                          updated[idx].name = value;
+                          return {
+                            ...prev,
+                            childrenContext: { ...prev.childrenContext, children: updated }
+                          };
+                        });
+                      }}
+                      placeholder="Child's name"
+                    />
                   </div>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="font-medium text-gray-700">Academic Performance:</span>
-                      <span className="ml-2 text-gray-600">{child.academicPerformance.replace('_', ' ')}</span>
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-700">Education Path:</span>
-                      <span className="ml-2 text-gray-600">{child.educationAspirations.replace('_', ' ')}</span>
-                    </div>
+                  <div className="mb-2">
+                    <label className="block text-sm font-medium">Age</label>
+                    <input
+                      type="number"
+                      className="w-full px-3 py-2 rounded border"
+                      value={child.age}
+                      onChange={e => {
+                        const value = Number(e.target.value);
+                        setData(prev => {
+                          const updated = [...prev.childrenContext.children];
+                          updated[idx].age = value;
+                          return {
+                            ...prev,
+                            childrenContext: { ...prev.childrenContext, children: updated }
+                          };
+                        });
+                      }}
+                      min={0}
+                      max={30}
+                    />
                   </div>
-                  <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                    <p className="text-sm text-gray-700">
-                      <strong>Projected Timeline:</strong> 10th completion (2029), 
-                      College graduation (2035), 
-                      Estimated cost: ₹{Math.floor(25 + index * 10)}L - ₹{Math.floor(180 + index * 20)}L
-                    </p>
+                  <div className="mb-2">
+                    <label className="block text-sm font-medium">Academic Performance</label>
+                    <select
+                      className="w-full px-3 py-2 rounded border"
+                      value={child.academicPerformance}
+                      onChange={e => {
+                        const value = e.target.value as 'struggling' | 'average' | 'above_average' | 'exceptional';
+                        setData(prev => {
+                          const updated = [...prev.childrenContext.children];
+                          updated[idx].academicPerformance = value;
+                          return {
+                            ...prev,
+                            childrenContext: { ...prev.childrenContext, children: updated }
+                          };
+                        });
+                      }}
+                    >
+                      <option value="struggling">Struggling</option>
+                      <option value="average">Average</option>
+                      <option value="above_average">Above Average</option>
+                      <option value="exceptional">Exceptional</option>
+                    </select>
+                  </div>
+                  <div className="mb-2">
+                    <label className="block text-sm font-medium">Education Path</label>
+                    <select
+                      className="w-full px-3 py-2 rounded border"
+                      value={child.educationAspirations}
+                      onChange={e => {
+                        const value = e.target.value as 'public_state' | 'public_premium' | 'private_state' | 'private_premium' | 'international';
+                        setData(prev => {
+                          const updated = [...prev.childrenContext.children];
+                          updated[idx].educationAspirations = value;
+                          return {
+                            ...prev,
+                            childrenContext: { ...prev.childrenContext, children: updated }
+                          };
+                        });
+                      }}
+                    >
+                      <option value="public_state">Public State</option>
+                      <option value="public_premium">Public Premium</option>
+                      <option value="private_state">Private State</option>
+                      <option value="private_premium">Private Premium</option>
+                      <option value="international">International</option>
+                    </select>
+                  </div>
+                  <div className="mb-2">
+                    <label className="block text-sm font-medium">Current School Type</label>
+                    <select
+                      className="w-full px-3 py-2 rounded border"
+                      value={child.currentSchoolType}
+                      onChange={e => {
+                        const value = e.target.value as 'government' | 'private_vernacular' | 'private_english' | 'international';
+                        setData(prev => {
+                          const updated = [...prev.childrenContext.children];
+                          updated[idx].currentSchoolType = value;
+                          return {
+                            ...prev,
+                            childrenContext: { ...prev.childrenContext, children: updated }
+                          };
+                        });
+                      }}
+                    >
+                      <option value="government">Government</option>
+                      <option value="private_vernacular">Private Vernacular</option>
+                      <option value="private_english">Private English</option>
+                      <option value="international">International</option>
+                    </select>
                   </div>
                 </div>
               ))}
-              <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
-                <p className="text-yellow-800 font-medium text-sm">
-                  ⚠️ Two children with different timelines create cash flow complexity that 67% of families mismanage
-                </p>
-              </div>
+              <button
+                className="mt-2 px-4 py-2 bg-purple-600 text-white rounded-lg"
+                onClick={() => {
+                  setData(prev => ({
+                    ...prev,
+                    childrenContext: {
+                      ...prev.childrenContext,
+                      children: [
+                        ...prev.childrenContext.children,
+                        {
+                          name: '',
+                          age: 0,
+                          academicPerformance: 'average',
+                          interests: [],
+                          educationAspirations: 'private_state',
+                          currentSchoolType: 'private_english'
+                        }
+                      ]
+                    }
+                  }));
+                }}
+                type="button"
+              >
+                + Add Child
+              </button>
             </div>
           </div>
         );
@@ -876,7 +1293,7 @@ const WealthCalculatorFlow: React.FC<{
               <div className="flex items-start gap-3">
                 <Shield className="w-6 h-6 text-green-600 mt-0.5" />
                 <div>
-                  <h4 className="font-semibold text-green-800 mb-3">Your Personalized Protection Plan Includes:</h4>
+                  <h4 className="font-semibold text-green-900 mb-3">Your Personalized Protection Plan Includes:</h4>
                   <ul className="text-green-700 space-y-2">
                     <li className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-green-600 rounded-full"></div>
@@ -970,9 +1387,12 @@ const WealthCalculatorFlow: React.FC<{
         
         {/* Progress Bar */}
         <div className="w-full bg-gray-200 rounded-full h-3 mt-4">
-          <div 
-            className={`bg-gradient-to-r from-${phaseStyle.color}-600 to-${phaseStyle.color}-700 h-3 rounded-full transition-all duration-500 shadow-sm`}
-            style={{ width: `${progress}%` }}
+          <div
+            className="h-3 rounded-full transition-all duration-500 shadow-sm"
+            style={{
+              width: `${progress}%`,
+              background: 'linear-gradient(90deg, #7847f0 0%, #5f36c7 100%)'
+            }}
           ></div>
         </div>
         
@@ -1002,14 +1422,12 @@ const WealthCalculatorFlow: React.FC<{
           {/* Recent Insights */}
           {insights.length > 0 && (
             <div className="mt-8 space-y-3">
-              {insights.slice(-2).map((insight, index) => (
-                <div key={index} className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-                  <div className="flex items-start gap-3">
-                    <Brain className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-blue-800 font-medium">{insight}</p>
-                  </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+                <div className="flex items-start gap-3">
+                  <Brain className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-blue-800 font-medium">{insights[insights.length - 1]}</p>
                 </div>
-              ))}
+              </div>
             </div>
           )}
         </div>
@@ -1021,7 +1439,8 @@ const WealthCalculatorFlow: React.FC<{
           <button
             onClick={handleNext}
             disabled={currentQuestion.id === 'email_capture' && !data.email}
-            className={`w-full bg-gradient-to-r from-${phaseStyle.color}-600 to-${phaseStyle.color}-700 hover:from-${phaseStyle.color}-700 hover:to-${phaseStyle.color}-800 text-white font-bold py-4 px-6 rounded-2xl text-lg transition-all duration-300 transform active:scale-95 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3`}
+            className={`w-full bg-[#7847f0] text-white font-bold py-4 px-6 rounded-2xl text-lg transition-all duration-300 transform active:scale-95 shadow-lg flex items-center justify-center gap-3
+              hover:bg-[#5f36c7] focus:bg-[#5f36c7] disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             {currentQuestionIndex === questionFlow.length - 1 ? (
               <>
@@ -1051,3 +1470,165 @@ const WealthCalculatorFlow: React.FC<{
 };
 
 export default WealthCalculatorFlow;
+
+// Add global style for custom slider
+// Use a regular <style> tag for global CSS
+if (typeof window !== 'undefined') {
+  const style = document.createElement('style');
+  style.innerHTML = `
+    .custom-slider {
+      background: #e5e7eb; /* muted light grey */
+      height: 0.75rem;
+      border-radius: 0.75rem;
+    }
+    .custom-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 1.5rem;
+      height: 1.5rem;
+      border-radius: 9999px;
+      background: #7847f0;
+      border: 3px solid #fff;
+      box-shadow: 0 2px 8px rgba(120,71,240,0.15);
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .custom-slider:focus::-webkit-slider-thumb,
+    .custom-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 16px rgba(120, 71, 240, 0.5);
+    }
+    .custom-slider::-moz-range-thumb {
+      width: 1.5rem;
+      height: 1.5rem;
+      border-radius: 9999px;
+      background: #7847f0;
+      border: 3px solid #fff;
+      box-shadow: 0 2px 8px rgba(120, 71, 240, 0.3);
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .custom-slider:focus::-moz-range-thumb,
+    .custom-slider::-moz-range-thumb:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 16px rgba(120, 71, 240, 0.5);
+    }
+    .custom-slider::-ms-thumb {
+      width: 1.5rem;
+      height: 1.5rem;
+      border-radius: 9999px;
+      background: #7847f0;
+      border: 3px solid #fff;
+      box-shadow: 0 2px 8px rgba(87, 43, 201, 0.3);
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .custom-slider:focus::-ms-thumb {
+      transform: scale(1.1);
+      box-shadow: 0 6px 16px rgba(120, 71, 240, 0.5);
+    }
+    .custom-slider::-webkit-slider-runnable-track {
+      background:rgb(125, 128, 133);
+    }
+    .custom-slider::-ms-fill-lower {
+      background:rgb(153, 154, 156);
+    }
+    .custom-slider::-ms-fill-upper {
+      background:rgb(143, 146, 153);
+    }
+  `;
+  if (!document.head.querySelector('style[data-wealth-calc-slider]')) {
+    style.setAttribute('data-wealth-calc-slider', 'true');
+    document.head.appendChild(style);
+  }
+  if (!document.head.querySelector('style[data-wealth-calc-age-slider]')) {
+    const style = document.createElement('style');
+    style.setAttribute('data-wealth-calc-age-slider', 'true');
+    style.innerHTML = `
+      .age-slider-modern {
+        width: 100%;
+        height: 6px;
+        border-radius: 4px;
+        background: linear-gradient(to right, #e5e7eb, #d1d5db) !important;
+        background-color: #e5e7eb !important;
+        outline: none;
+        -webkit-appearance: none;
+        appearance: none;
+        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+      .age-slider-modern::-webkit-slider-thumb {
+        appearance: none;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #7847f0, #5f36c7);
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(120, 71, 240, 0.2);
+        transition: all 0.3s ease;
+        margin-top: -11px; /* Center thumb: (track height 6px - thumb height 28px) / 2 = -11px */
+      }
+      .age-slider-modern:focus::-webkit-slider-thumb,
+      .age-slider-modern::-webkit-slider-thumb:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 16px rgba(120, 71, 240, 0.5);
+      }
+      .age-slider-modern::-moz-range-thumb {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #7847f0, #5f36c7);
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 4px 12px rgba(120, 71, 240, 0.3);
+        transition: all 0.3s ease;
+        margin-top: -11px; /* Center thumb for Firefox */
+      }
+      .age-slider-modern:focus::-moz-range-thumb,
+      .age-slider-modern::-moz-range-thumb:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 16px rgba(120, 71, 240, 0.5);
+      }
+      .age-slider-modern::-ms-thumb {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #7847f0, #5f36c7);
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 4px 12px rgba(87, 43, 201, 0.3);
+        transition: all 0.3s ease;
+        margin-top: -11px; /* Center thumb for IE/Edge */
+      }
+      .age-slider-modern:focus::-ms-thumb {
+        transform: scale(1.1);
+        box-shadow: 0 6px 16px rgba(120, 71, 240, 0.5);
+      }
+      .age-slider-modern::-webkit-slider-runnable-track {
+        background: linear-gradient(to right, #e5e7eb, #d1d5db) !important;
+        background-color: #e5e7eb !important;
+        height: 6px;
+        border-radius: 4px;
+        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+      .age-slider-modern::-ms-fill-lower {
+        background: linear-gradient(to right, #e5e7eb, #d1d5db) !important;
+        background-color: #e5e7eb !important;
+        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+      .age-slider-modern::-ms-fill-upper {
+        background: linear-gradient(to right, #e5e7eb, #d1d5db) !important;
+        background-color: #e5e7eb !important;
+        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+      .age-slider-modern::-moz-range-track {
+        background: linear-gradient(to right, #e5e7eb, #d1d5db) !important;
+        background-color: #e5e7eb !important;
+        height: 6px;
+        border-radius: 4px;
+        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: none;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+}

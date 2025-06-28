@@ -74,6 +74,7 @@ function App() {
   };
 
   const handleCalculatorComplete = (data: any) => {
+    console.log('🎯 App: handleCalculatorComplete called with data:', data);
     setCalculatorData(data);
     setCurrentScreen('wealth-results');
   };
