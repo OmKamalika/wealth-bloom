@@ -65,6 +65,37 @@ const WealthExtinctionResults: React.FC<{
   userProfile: UserProfile;
   onGetProtectionPlan: () => void;
 }> = ({ results, userProfile, onGetProtectionPlan }) => {
+  // Debug logging
+  console.log('🎯 WealthExtinctionResults received props:', {
+    results,
+    userProfile,
+    hasResults: !!results,
+    hasUserProfile: !!userProfile,
+    resultsKeys: results ? Object.keys(results) : [],
+    userProfileKeys: userProfile ? Object.keys(userProfile) : []
+  });
+
+  // Safety check for required data
+  if (!results || !userProfile) {
+    console.error('❌ WealthExtinctionResults: Missing required props');
+    console.error('  - results:', results);
+    console.error('  - userProfile:', userProfile);
+    
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">No Results Available</h2>
+          <p className="text-gray-600 mb-6">Please complete the calculator first.</p>
+          <div className="text-sm text-gray-500 mb-4">
+            <p>Debug info:</p>
+            <p>Has results: {results ? 'Yes' : 'No'}</p>
+            <p>Has userProfile: {userProfile ? 'Yes' : 'No'}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const [currentView, setCurrentView] = useState<'shock' | 'timeline' | 'family' | 'complexity' | 'protection'>('shock');
   const [animationPhase, setAnimationPhase] = useState(0);
   const [countdownValue, setCountdownValue] = useState(results.extinctionYear);
@@ -235,6 +266,142 @@ const WealthExtinctionResults: React.FC<{
           <p className="text-green-800 font-bold text-center">
             💰 Total Optimization Potential: ₹{(results.complexityAnalysis.optimizationPotential / 100000).toFixed(1)}L
           </p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderFamilyImpact = () => (
+    <div className="space-y-8">
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-gray-900 mb-4">Generational Impact Analysis</h2>
+        <p className="text-lg text-gray-600">How wealth extinction affects each generation</p>
+      </div>
+
+      {/* Generation Comparison */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Generation 1 - You */}
+        <div className="bg-gradient-to-b from-green-50 to-green-100 p-6 rounded-2xl border border-green-200">
+          <div className="text-center space-y-4">
+            <div className="text-4xl">👨‍👩‍👧‍👦</div>
+            <h3 className="font-bold text-green-800">Generation 1 (You)</h3>
+            <div className="space-y-2">
+              <div className="text-2xl font-bold text-green-600">₹{(userProfile.netWorth / 100000).toFixed(1)}L</div>
+              <p className="text-green-700 text-sm">Built from scratch</p>
+              <div className="bg-green-200 rounded-full px-3 py-1 text-xs font-medium text-green-800">
+                Wealth Builder
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Generation 2 - Children */}
+        <div className="bg-gradient-to-b from-yellow-50 to-yellow-100 p-6 rounded-2xl border border-yellow-200">
+          <div className="text-center space-y-4">
+            <div className="text-4xl">👧👦</div>
+            <h3 className="font-bold text-yellow-800">Generation 2 (Children)</h3>
+            <div className="space-y-2">
+              <div className="text-2xl font-bold text-yellow-600">₹{(results.childrenInheritance / 100000).toFixed(1)}L</div>
+              <p className="text-yellow-700 text-sm">Each child inherits</p>
+              <div className="bg-yellow-200 rounded-full px-3 py-1 text-xs font-medium text-yellow-800">
+                {Math.round((results.childrenInheritance / userProfile.netWorth) * 100)}% of your wealth
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Generation 3 - Grandchildren */}
+        <div className="bg-gradient-to-b from-red-50 to-red-100 p-6 rounded-2xl border border-red-200">
+          <div className="text-center space-y-4">
+            <div className="text-4xl">👶👶</div>
+            <h3 className="font-bold text-red-800">Generation 3 (Grandchildren)</h3>
+            <div className="space-y-2">
+              <div className="text-2xl font-bold text-red-600">₹0</div>
+              <p className="text-red-700 text-sm">Complete extinction</p>
+              <div className="bg-red-200 rounded-full px-3 py-1 text-xs font-medium text-red-800">
+                Start from zero
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Family Crisis Scenarios */}
+      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-lg">
+        <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <Heart className="w-6 h-6 text-red-500" />
+          Real Family Impact
+        </h3>
+        
+        <div className="space-y-4">
+          <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+            <h4 className="font-semibold text-blue-800 mb-2">Your Children's Reality</h4>
+            <p className="text-blue-700 text-sm">
+              "Dad, why can't you help with our children's education like grandpa helped us?"
+            </p>
+          </div>
+          
+          <div className="p-4 bg-orange-50 rounded-xl border border-orange-200">
+            <h4 className="font-semibold text-orange-800 mb-2">Your Grandchildren's Question</h4>
+            <p className="text-orange-700 text-sm">
+              "Why doesn't our family have money for college like other families?"
+            </p>
+          </div>
+          
+          <div className="p-4 bg-red-50 rounded-xl border border-red-200">
+            <h4 className="font-semibold text-red-800 mb-2">The Legacy You Leave</h4>
+            <p className="text-red-700 text-sm">
+              Your life's work supporting exactly 2 generations before complete extinction.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderComplexityAnalysis = () => (
+    <div className="space-y-8">
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-gray-900 mb-4">Your Complexity Web</h2>
+        <p className="text-lg text-gray-600">247 interconnected variables affecting your wealth timeline</p>
+      </div>
+
+      {/* Complexity Score */}
+      <div className="bg-gradient-to-r from-purple-50 to-indigo-50 p-6 rounded-2xl border border-purple-200">
+        <div className="text-center space-y-4">
+          <div className="text-6xl font-bold text-purple-600">
+            {results.complexityAnalysis.score.toFixed(1)}/10
+          </div>
+          <h3 className="text-xl font-semibold text-purple-800">Family Wealth Complexity Score</h3>
+          <p className="text-purple-700">
+            {results.complexityAnalysis.score < 3 ? 'Low complexity - manageable with basic planning' :
+             results.complexityAnalysis.score < 6 ? 'Moderate complexity - requires systematic approach' :
+             results.complexityAnalysis.score < 8 ? 'High complexity - professional coordination recommended' :
+             'Maximum complexity - platform-level management essential'}
+          </p>
+        </div>
+      </div>
+
+      {/* Top Wealth Destroyers */}
+      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-lg">
+        <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <TrendingDown className="w-6 h-6 text-red-500" />
+          Top Wealth Destroyers for Your Family
+        </h3>
+        
+        <div className="space-y-4">
+          {results.topWealthDestroyers.map((destroyer, index) => (
+            <div key={index} className="flex items-center justify-between p-4 bg-red-50 rounded-xl border border-red-200">
+              <div className="flex-1">
+                <h4 className="font-semibold text-red-800">{destroyer.factor}</h4>
+                <p className="text-red-700 text-sm mt-1">{destroyer.description}</p>
+              </div>
+              <div className="text-right ml-4">
+                <div className="text-lg font-bold text-red-600">-₹{(destroyer.impact / 100000).toFixed(1)}L</div>
+                <div className="text-xs text-red-700">Lifetime Impact</div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -475,176 +642,4 @@ const WealthExtinctionResults: React.FC<{
   );
 };
 
-export default WealthExtinctionResults;6">
-          {/* Current Status */}
-          <div className="flex items-center justify-between p-4 bg-green-50 rounded-xl border border-green-200">
-            <div>
-              <h3 className="font-semibold text-green-800">Today (2025)</h3>
-              <p className="text-green-700">Building wealth actively</p>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-green-600">₹{(userProfile.netWorth / 100000).toFixed(1)}L</div>
-              <div className="text-sm text-green-700">Net Worth</div>
-            </div>
-          </div>
-
-          {/* Peak Wealth */}
-          <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-200">
-            <div>
-              <h3 className="font-semibold text-blue-800">Peak Wealth (~{results.extinctionYear - 15})</h3>
-              <p className="text-blue-700">Maximum family wealth achieved</p>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-blue-600">₹{((userProfile.netWorth * 2.8) / 100000).toFixed(1)}L</div>
-              <div className="text-sm text-blue-700">Estimated Peak</div>
-            </div>
-          </div>
-
-          {/* Inheritance */}
-          <div className="flex items-center justify-between p-4 bg-orange-50 rounded-xl border border-orange-200">
-            <div>
-              <h3 className="font-semibold text-orange-800">Your Passing (~{results.familyImpact.inheritance.year})</h3>
-              <p className="text-orange-700">Children inherit reduced wealth</p>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-orange-600">₹{(results.childrenInheritance / 100000).toFixed(1)}L</div>
-              <div className="text-sm text-orange-700">Per Child</div>
-            </div>
-          </div>
-
-          {/* Extinction */}
-          <div className="flex items-center justify-between p-4 bg-red-50 rounded-xl border border-red-200">
-            <div>
-              <h3 className="font-semibold text-red-800">Wealth Extinction ({results.extinctionYear})</h3>
-              <p className="text-red-700">Grandchildren inherit nothing</p>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-red-600">₹0</div>
-              <div className="text-sm text-red-700">Family Legacy</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderFamilyImpact = () => (
-    <div className="space-y-8">
-      <div className="text-center">
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">Generational Impact Analysis</h2>
-        <p className="text-lg text-gray-600">How wealth extinction affects each generation</p>
-      </div>
-
-      {/* Generation Comparison */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Generation 1 - You */}
-        <div className="bg-gradient-to-b from-green-50 to-green-100 p-6 rounded-2xl border border-green-200">
-          <div className="text-center space-y-4">
-            <div className="text-4xl">👨‍👩‍👧‍👦</div>
-            <h3 className="font-bold text-green-800">Generation 1 (You)</h3>
-            <div className="space-y-2">
-              <div className="text-2xl font-bold text-green-600">₹{(userProfile.netWorth / 100000).toFixed(1)}L</div>
-              <p className="text-green-700 text-sm">Built from scratch</p>
-              <div className="bg-green-200 rounded-full px-3 py-1 text-xs font-medium text-green-800">
-                Wealth Builder
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Generation 2 - Children */}
-        <div className="bg-gradient-to-b from-yellow-50 to-yellow-100 p-6 rounded-2xl border border-yellow-200">
-          <div className="text-center space-y-4">
-            <div className="text-4xl">👧👦</div>
-            <h3 className="font-bold text-yellow-800">Generation 2 (Children)</h3>
-            <div className="space-y-2">
-              <div className="text-2xl font-bold text-yellow-600">₹{(results.childrenInheritance / 100000).toFixed(1)}L</div>
-              <p className="text-yellow-700 text-sm">Each child inherits</p>
-              <div className="bg-yellow-200 rounded-full px-3 py-1 text-xs font-medium text-yellow-800">
-                {Math.round((results.childrenInheritance / userProfile.netWorth) * 100)}% of your wealth
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Generation 3 - Grandchildren */}
-        <div className="bg-gradient-to-b from-red-50 to-red-100 p-6 rounded-2xl border border-red-200">
-          <div className="text-center space-y-4">
-            <div className="text-4xl">👶👶</div>
-            <h3 className="font-bold text-red-800">Generation 3 (Grandchildren)</h3>
-            <div className="space-y-2">
-              <div className="text-2xl font-bold text-red-600">₹0</div>
-              <p className="text-red-700 text-sm">Complete extinction</p>
-              <div className="bg-red-200 rounded-full px-3 py-1 text-xs font-medium text-red-800">
-                Start from zero
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Family Crisis Scenarios */}
-      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-lg">
-        <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <Heart className="w-6 h-6 text-red-500" />
-          Real Family Impact
-        </h3>
-        
-        <div className="space-y-4">
-          <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
-            <h4 className="font-semibold text-blue-800 mb-2">Your Children's Reality</h4>
-            <p className="text-blue-700 text-sm">
-              "Dad, why can't you help with our children's education like grandpa helped us?"
-            </p>
-          </div>
-          
-          <div className="p-4 bg-orange-50 rounded-xl border border-orange-200">
-            <h4 className="font-semibold text-orange-800 mb-2">Your Grandchildren's Question</h4>
-            <p className="text-orange-700 text-sm">
-              "Why doesn't our family have money for college like other families?"
-            </p>
-          </div>
-          
-          <div className="p-4 bg-red-50 rounded-xl border border-red-200">
-            <h4 className="font-semibold text-red-800 mb-2">The Legacy You Leave</h4>
-            <p className="text-red-700 text-sm">
-              Your life's work supporting exactly 2 generations before complete extinction.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderComplexityAnalysis = () => (
-    <div className="space-y-8">
-      <div className="text-center">
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">Your Complexity Web</h2>
-        <p className="text-lg text-gray-600">247 interconnected variables affecting your wealth timeline</p>
-      </div>
-
-      {/* Complexity Score */}
-      <div className="bg-gradient-to-r from-purple-50 to-indigo-50 p-6 rounded-2xl border border-purple-200">
-        <div className="text-center space-y-4">
-          <div className="text-6xl font-bold text-purple-600">
-            {results.complexityAnalysis.score.toFixed(1)}/10
-          </div>
-          <h3 className="text-xl font-semibold text-purple-800">Family Wealth Complexity Score</h3>
-          <p className="text-purple-700">
-            {results.complexityAnalysis.score < 3 ? 'Low complexity - manageable with basic planning' :
-             results.complexityAnalysis.score < 6 ? 'Moderate complexity - requires systematic approach' :
-             results.complexityAnalysis.score < 8 ? 'High complexity - professional coordination recommended' :
-             'Maximum complexity - platform-level management essential'}
-          </p>
-        </div>
-      </div>
-
-      {/* Top Wealth Destroyers */}
-      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-lg">
-        <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <TrendingDown className="w-6 h-6 text-red-500" />
-          Top Wealth Destroyers for Your Family
-        </h3>
-        
-        <div className="space-y-4"> </div>
-    </div>
+export default WealthExtinctionResults;

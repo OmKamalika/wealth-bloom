@@ -406,7 +406,7 @@ const WealthCalculatorFlow: React.FC<{
       id: 'email_capture',
       phase: 'email_capture',
       title: "Get your personalized family protection strategy",
-      subtitle: "Your situation (complexity score 9.9/10) requires ongoing professional coordination",
+      subtitleFn: (data) => `Your situation (complexity score ${data.complexityAnalysis.complexityScore.toFixed(1)}/10) requires ongoing professional coordination`,
       type: 'text_input'
     }
   ];
@@ -845,9 +845,28 @@ const WealthCalculatorFlow: React.FC<{
       
       const result = await response.json();
       console.log('📊 API Response:', result);
+      console.log('📊 API Response structure:', {
+        success: result.success,
+        hasData: !!result.data,
+        dataKeys: result.data ? Object.keys(result.data) : [],
+        extinctionYear: result.data?.extinctionYear,
+        yearsRemaining: result.data?.yearsRemaining,
+        hasProjections: !!result.data?.projections,
+        projectionsCount: result.data?.projections?.length || 0,
+        hasTopWealthDestroyers: !!result.data?.topWealthDestroyers,
+        hasFamilyImpact: !!result.data?.familyImpact,
+        hasProtectedScenario: !!result.data?.protectedScenario,
+        hasComplexityAnalysis: !!result.data?.complexityAnalysis,
+        hasScenarioAnalysis: !!result.data?.scenarioAnalysis
+      });
       
       if (result.success && result.data) {
         console.log('✅ Success! Passing data to results screen:', { inputs: calculationPayload, results: result.data });
+        console.log('📤 Calling onComplete with:', {
+          inputs: calculationPayload,
+          results: result.data,
+          resultsKeys: Object.keys(result.data)
+        });
         setIsLoading(false);
         onComplete({ inputs: calculationPayload, results: result.data });
       } else {

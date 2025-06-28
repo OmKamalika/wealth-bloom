@@ -285,12 +285,16 @@ app.post('/api/calculate-wealth', async (req, res) => {
     console.log('🔢 Complexity score:', calculatorData.complexityAnalysis.complexityScore);
     
     // Run the advanced calculation
+    console.log('🔮 Starting calculation with local function...');
     const results = calculateWealthExtinction(calculatorData);
     console.log('✅ Advanced calculation completed');
     
     // Log results for monitoring
     console.log('📅 Extinction year:', results.extinctionYear);
     console.log('⏰ Years remaining:', results.yearsRemaining);
+    console.log('💰 Current wealth:', results.currentWealth);
+    console.log('👨‍👩‍👧‍👦 Children inheritance:', results.childrenInheritance);
+    console.log('🎓 Grandchildren inheritance:', results.grandchildrenInheritance);
     
     const responseData = {
       success: true,
@@ -304,13 +308,26 @@ app.post('/api/calculate-wealth', async (req, res) => {
       }
     };
     
-    console.log('📤 Sending response:', JSON.stringify(responseData, null, 2));
+    console.log('📤 About to send response');
+    console.log('📦 Response data structure:', {
+      success: responseData.success,
+      extinctionYear: responseData.data.extinctionYear,
+      yearsRemaining: responseData.data.yearsRemaining,
+      hasProjections: !!responseData.data.projections,
+      projectionsCount: responseData.data.projections?.length || 0,
+      hasTopWealthDestroyers: !!responseData.data.topWealthDestroyers,
+      hasFamilyImpact: !!responseData.data.familyImpact,
+      hasProtectedScenario: !!responseData.data.protectedScenario,
+      hasComplexityAnalysis: !!responseData.data.complexityAnalysis,
+      hasScenarioAnalysis: !!responseData.data.scenarioAnalysis
+    });
     
-    // Return successful response
     res.json(responseData);
+    console.log('✅ Response sent successfully');
     
   } catch (error) {
     console.error('❌ Calculation API error:', error);
+    console.error('❌ Error stack:', error.stack);
     
     // Return error response
     res.status(500).json({

@@ -11,7 +11,7 @@ import FinalDecisionsScreen from './components/FinalDecisionsScreen';
 import DashboardScreen from './components/DashboardScreen';
 import WealthCalculatorLanding from './components/WealthCalculatorLanding';
 import WealthCalculatorFlow from './components/WealthCalculatorFlow';
-import WealthResultsScreen from './components/WealthResultsScreen';
+import WealthExtinctionResults from './components/WealthExtinctionResults';
 import EmailCaptureScreen from './components/EmailCaptureScreen';
 
 function App() {
@@ -76,7 +76,7 @@ function App() {
   const handleCalculatorComplete = (data: any) => {
     console.log('🎯 App: handleCalculatorComplete called with data:', data);
     setCalculatorData(data);
-    setCurrentScreen('wealth-results');
+    setCurrentScreen('wealth-extinction-results');
   };
 
   const handleGetProtectionPlan = () => {
@@ -95,11 +95,11 @@ function App() {
       case 'wealth-calculator':
         setCurrentScreen('landing');
         break;
-      case 'wealth-results':
+      case 'wealth-extinction-results':
         setCurrentScreen('wealth-calculator');
         break;
       case 'email-capture':
-        setCurrentScreen('wealth-results');
+        setCurrentScreen('wealth-extinction-results');
         break;
       case 'value-proposition':
         setCurrentScreen('landing');
@@ -138,12 +138,19 @@ function App() {
             onBack={() => handleScreenTransition('landing')}
           />
         );
-      case 'wealth-results':
+      case 'wealth-extinction-results':
         return (
-          <WealthResultsScreen
-            calculatorData={calculatorData}
+          <WealthExtinctionResults
+            results={calculatorData?.results}
+            userProfile={{
+              age: calculatorData?.inputs?.coreIdentity?.age || 30,
+              netWorth: calculatorData?.inputs?.financialFoundation?.currentNetWorth || 0,
+              income: calculatorData?.inputs?.financialFoundation?.annualIncome || 0,
+              location: `${calculatorData?.inputs?.coreIdentity?.location?.city || 'Mumbai'}, ${calculatorData?.inputs?.coreIdentity?.location?.state || 'Maharashtra'}`,
+              children: calculatorData?.inputs?.childrenContext?.children?.length || 0,
+              maritalStatus: calculatorData?.inputs?.coreIdentity?.maritalStatus || 'married'
+            }}
             onGetProtectionPlan={handleGetProtectionPlan}
-            onStartOver={() => handleScreenTransition('wealth-calculator')}
           />
         );
       case 'email-capture':

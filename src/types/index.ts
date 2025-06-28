@@ -56,6 +56,7 @@ export type Screen =
   | 'landing' 
   | 'wealth-calculator'
   | 'wealth-results'
+  | 'wealth-extinction-results'
   | 'email-capture'
   | 'value-proposition' 
   | 'problem-solution' 
