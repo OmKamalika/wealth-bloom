@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, TrendingDown, TrendingUp, Users, Heart, Brain, Shield, Clock, ArrowDown, ArrowUp, Target, Zap } from 'lucide-react';
+import { Heart, ArrowUp } from 'lucide-react';
 
 interface WealthProjection {
   year: number;
@@ -82,7 +82,7 @@ const WealthExtinctionResults: React.FC<{
     console.error('  - userProfile:', userProfile);
     
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center p-6">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">No Results Available</h2>
           <p className="text-gray-600 mb-6">Please complete the calculator first.</p>
@@ -162,8 +162,8 @@ const WealthExtinctionResults: React.FC<{
       }
     };
     
-    document.addEventListener('touchstart', handleTouchStart);
-    document.addEventListener('touchend', handleTouchEnd);
+    document.addEventListener('touchstart', handleTouchStart, { passive: true });
+    document.addEventListener('touchend', handleTouchEnd, { passive: true });
     
     return () => {
       document.removeEventListener('touchstart', handleTouchStart);
@@ -181,7 +181,7 @@ const WealthExtinctionResults: React.FC<{
       <div className="flex flex-col items-center justify-center text-center px-6 pt-10 pb-6 flex-grow">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center">
-            <AlertTriangle className="w-6 h-6 text-black" />
+            <span className="text-black">⚠️</span>
           </div>
           <h2 className="text-4xl font-black uppercase">FAMILY</h2>
         </div>
@@ -201,7 +201,7 @@ const WealthExtinctionResults: React.FC<{
       </div>
       
       {showSwipeIndicator && (
-        <div className="fixed bottom-6 left-0 right-0 flex justify-center animate-bounce">
+        <div className="fixed bottom-6 left-0 right-0 flex justify-center animate-swipe-up">
           <div className="flex flex-col items-center text-gray-500">
             <span className="text-xl">👆</span>
             <p className="text-sm">Swipe up to see how</p>
