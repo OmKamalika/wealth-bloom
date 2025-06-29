@@ -22,41 +22,41 @@ export class AdvancedWealthCalculatorIncome {
 
   // Industry growth rates in India
   private static readonly INDUSTRY_GROWTH_RATES: Record<string, number> = {
-    'technology': 0.12,
-    'healthcare': 0.09,
-    'finance': 0.08,
-    'manufacturing': 0.06,
-    'retail': 0.05,
-    'education': 0.045,
-    'government': 0.04,
-    'agriculture': 0.035,
-    'construction': 0.055,
-    'hospitality': 0.05,
-    'transportation': 0.045,
-    'energy': 0.07,
-    'telecommunications': 0.08,
-    'media': 0.06,
-    'pharmaceutical': 0.095,
-    'consulting': 0.075,
-    'real_estate': 0.065,
+    'technology': 0.10, // Reduced from 0.12
+    'healthcare': 0.08, // Reduced from 0.09
+    'finance': 0.07, // Reduced from 0.08
+    'manufacturing': 0.05, // Reduced from 0.06
+    'retail': 0.04, // Reduced from 0.05
+    'education': 0.035, // Reduced from 0.045
+    'government': 0.03, // Reduced from 0.04
+    'agriculture': 0.025, // Reduced from 0.035
+    'construction': 0.045, // Reduced from 0.055
+    'hospitality': 0.04, // Reduced from 0.05
+    'transportation': 0.035, // Reduced from 0.045
+    'energy': 0.06, // Reduced from 0.07
+    'telecommunications': 0.07, // Reduced from 0.08
+    'media': 0.05, // Reduced from 0.06
+    'pharmaceutical': 0.085, // Reduced from 0.095
+    'consulting': 0.065, // Reduced from 0.075
+    'real_estate': 0.055, // Reduced from 0.065
     // Default for unlisted industries
-    'default': 0.055
+    'default': 0.045 // Reduced from 0.055
   };
 
   // Career progression factors by role level
   private static readonly ROLE_PROGRESSION_FACTORS: Record<string, number> = {
-    'junior': 0.08,
-    'mid': 0.06,
-    'senior': 0.045,
-    'leadership': 0.035
+    'junior': 0.07, // Reduced from 0.08
+    'mid': 0.05, // Reduced from 0.06
+    'senior': 0.035, // Reduced from 0.045
+    'leadership': 0.025 // Reduced from 0.035
   };
 
   // Business income growth rates by business age
   private static readonly BUSINESS_GROWTH_RATES: Record<string, number> = {
-    'startup': 0.25, // 0-3 years
-    'growth': 0.15,  // 3-7 years
-    'established': 0.08, // 7-15 years
-    'mature': 0.04   // 15+ years
+    'startup': 0.20, // Reduced from 0.25
+    'growth': 0.12, // Reduced from 0.15
+    'established': 0.06, // Reduced from 0.08
+    'mature': 0.03 // Reduced from 0.04
   };
 
   /**
@@ -87,44 +87,47 @@ export class AdvancedWealthCalculatorIncome {
     baseIncome: number, 
     inputs: CalculatorData
   ): number {
-    // Get industry growth rate
-    const industry = inputs.coreIdentity.employment.industry.toLowerCase();
+    // Get industry growth rate with fallback
+    const industry = inputs.coreIdentity.employment?.industry?.toLowerCase() || 'default';
     const industryGrowthRate = this.INDUSTRY_GROWTH_RATES[industry] || this.INDUSTRY_GROWTH_RATES.default;
     
-    // Get role progression factor
-    const roleLevel = inputs.coreIdentity.employment.roleLevel;
-    const roleProgressionFactor = this.ROLE_PROGRESSION_FACTORS[roleLevel];
+    // Get role progression factor with fallback
+    const roleLevel = inputs.coreIdentity.employment?.roleLevel || 'mid';
+    const roleProgressionFactor = this.ROLE_PROGRESSION_FACTORS[roleLevel] || this.ROLE_PROGRESSION_FACTORS.mid;
     
     // Calculate base growth rate (decreases with age)
     let baseGrowthRate = roleProgressionFactor;
     
-    // Adjust for age - growth slows down after 45
-    if (currentAge > 45) {
-      baseGrowthRate *= Math.pow(0.95, currentAge - 45); // 5% reduction per year after 45
+    // Adjust for age - growth slows down after 45 and becomes negative after 60
+    if (currentAge > 45 && currentAge <= 60) {
+      baseGrowthRate *= Math.pow(0.92, currentAge - 45); // 8% reduction per year after 45
+    } else if (currentAge > 60) {
+      // After retirement age, income decreases more rapidly
+      baseGrowthRate = -0.05 - (0.01 * (currentAge - 60)); // Starting at -5% and decreasing by 1% each year
     }
     
     // Adjust for education level
-    const educationMultiplier = this.getEducationMultiplier(inputs.coreIdentity.education.level);
+    const educationMultiplier = this.getEducationMultiplier(inputs.coreIdentity.education?.level || 'bachelors');
     
     // Adjust for city tier
-    const locationMultiplier = this.getLocationMultiplier(inputs.coreIdentity.location.cityType);
+    const locationMultiplier = this.getLocationMultiplier(inputs.coreIdentity.location?.cityType || 'tier2');
     
     // Calculate income for this year
     let yearlyIncome = baseIncome;
     
     // Apply compounding growth for each year
     for (let i = 0; i < year; i++) {
-      const yearGrowthRate = baseGrowthRate + (industryGrowthRate * 0.5);
+      const yearGrowthRate = baseGrowthRate + (industryGrowthRate * 0.3); // Reduced industry impact from 0.5 to 0.3
       yearlyIncome *= (1 + yearGrowthRate * educationMultiplier * locationMultiplier);
       
-      // Adjust growth rate for next year (slight decrease over time)
-      baseGrowthRate *= 0.98;
+      // Adjust growth rate for next year (more significant decrease over time)
+      baseGrowthRate *= 0.96; // Increased from 0.98 to accelerate decline
     }
     
     // Handle retirement
     if (currentAge >= 60) {
       const yearsIntoRetirement = currentAge - 60;
-      const retirementFactor = Math.max(0.1, 1 - (yearsIntoRetirement * 0.15)); // 15% reduction per year, min 10%
+      const retirementFactor = Math.max(0.05, 1 - (yearsIntoRetirement * 0.20)); // 20% reduction per year, min 5%
       yearlyIncome *= retirementFactor;
     }
     
@@ -158,10 +161,10 @@ export class AdvancedWealthCalculatorIncome {
     }
     
     // Adjust for financial sophistication
-    const sophisticationMultiplier = this.getFinancialSophisticationMultiplier(inputs.coreIdentity.financialSophistication);
+    const sophisticationMultiplier = this.getFinancialSophisticationMultiplier(inputs.coreIdentity.financialSophistication || 'moderate');
     
     // Adjust for location
-    const locationMultiplier = this.getLocationMultiplier(inputs.coreIdentity.location.cityType);
+    const locationMultiplier = this.getLocationMultiplier(inputs.coreIdentity.location?.cityType || 'tier2');
     
     // Calculate income for this year
     let yearlyIncome = baseIncome;
@@ -169,18 +172,23 @@ export class AdvancedWealthCalculatorIncome {
     // Apply compounding growth for each year
     for (let i = 0; i < year; i++) {
       // Business income has higher volatility
-      const volatilityFactor = 0.8 + (Math.random() * 0.4); // 80-120% of expected growth
+      const volatilityFactor = 0.7 + (Math.random() * 0.5); // 70-120% of expected growth, increased volatility
       yearlyIncome *= (1 + (businessGrowthRate * sophisticationMultiplier * locationMultiplier * volatilityFactor));
       
-      // Business growth rate decreases over time
-      businessGrowthRate *= 0.96;
+      // Business growth rate decreases more rapidly over time
+      businessGrowthRate *= 0.94; // Increased from 0.96 to accelerate decline
     }
     
     // Handle retirement/business exit
     if (currentAge >= 65) {
       const yearsIntoRetirement = currentAge - 65;
-      const retirementFactor = Math.max(0.2, 1 - (yearsIntoRetirement * 0.1)); // 10% reduction per year, min 20%
+      const retirementFactor = Math.max(0.15, 1 - (yearsIntoRetirement * 0.15)); // 15% reduction per year, min 15%
       yearlyIncome *= retirementFactor;
+    }
+    
+    // Add market cycle effects - some years can have negative growth
+    if (year % 7 === 3 || year % 11 === 5) { // Economic downturns
+      yearlyIncome *= 0.85; // 15% reduction in downturn years
     }
     
     return yearlyIncome;
@@ -210,11 +218,14 @@ export class AdvancedWealthCalculatorIncome {
    */
   private static calculateDefaultIncomeProgression(year: number, currentAge: number, baseIncome: number): number {
     // Simple model with age-based growth
-    let growthRate = 0.05; // 5% base growth
+    let growthRate = 0.04; // Reduced from 0.05
     
     // Adjust for age
-    if (currentAge > 45) {
-      growthRate *= Math.pow(0.95, currentAge - 45);
+    if (currentAge > 45 && currentAge <= 60) {
+      growthRate *= Math.pow(0.92, currentAge - 45); // Increased from 0.95 to accelerate decline
+    } else if (currentAge > 60) {
+      // After retirement age, income decreases
+      growthRate = -0.05 - (0.01 * (currentAge - 60));
     }
     
     // Apply inflation
@@ -224,14 +235,19 @@ export class AdvancedWealthCalculatorIncome {
     let yearlyIncome = baseIncome;
     for (let i = 0; i < year; i++) {
       yearlyIncome *= (1 + growthRate);
-      growthRate *= 0.98; // Slight decrease in growth rate each year
+      growthRate *= 0.96; // Increased from 0.98 to accelerate decline
     }
     
     // Handle retirement
     if (currentAge >= 60) {
       const yearsIntoRetirement = currentAge - 60;
-      const retirementFactor = Math.max(0.15, 1 - (yearsIntoRetirement * 0.12));
+      const retirementFactor = Math.max(0.10, 1 - (yearsIntoRetirement * 0.15)); // Increased from 0.12 to accelerate decline
       yearlyIncome *= retirementFactor;
+    }
+    
+    // Add market cycle effects
+    if (year % 7 === 3 || year % 11 === 5) { // Economic downturns
+      yearlyIncome *= 0.9; // 10% reduction in downturn years
     }
     
     return yearlyIncome;

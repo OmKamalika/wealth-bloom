@@ -27,11 +27,33 @@ const AddFamilyMemberModal: React.FC<AddFamilyMemberModalProps> = ({ onClose, on
     { value: 'other', label: 'Other Family Member' }
   ];
 
+  // ISO country codes for top 25 countries by GDP
   const isoCodes = [
+    { value: '+1', label: '+1 (United States)' },
+    { value: '+86', label: '+86 (China)' },
+    { value: '+49', label: '+49 (Germany)' },
+    { value: '+81', label: '+81 (Japan)' },
     { value: '+91', label: '+91 (India)' },
-    { value: '+1', label: '+1 (US/Canada)' },
-    { value: '+44', label: '+44 (UK)' },
-    { value: '+971', label: '+971 (UAE)' }
+    { value: '+44', label: '+44 (United Kingdom)' },
+    { value: '+33', label: '+33 (France)' },
+    { value: '+55', label: '+55 (Brazil)' },
+    { value: '+39', label: '+39 (Italy)' },
+    { value: '+1', label: '+1 (Canada)' },
+    { value: '+7', label: '+7 (Russia)' },
+    { value: '+52', label: '+52 (Mexico)' },
+    { value: '+61', label: '+61 (Australia)' },
+    { value: '+82', label: '+82 (South Korea)' },
+    { value: '+34', label: '+34 (Spain)' },
+    { value: '+62', label: '+62 (Indonesia)' },
+    { value: '+31', label: '+31 (Netherlands)' },
+    { value: '+90', label: '+90 (Turkey)' },
+    { value: '+966', label: '+966 (Saudi Arabia)' },
+    { value: '+41', label: '+41 (Switzerland)' },
+    { value: '+48', label: '+48 (Poland)' },
+    { value: '+886', label: '+886 (Taiwan)' },
+    { value: '+32', label: '+32 (Belgium)' },
+    { value: '+46', label: '+46 (Sweden)' },
+    { value: '+54', label: '+54 (Argentina)' }
   ];
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -58,10 +80,11 @@ const AddFamilyMemberModal: React.FC<AddFamilyMemberModalProps> = ({ onClose, on
       <div className="bg-white rounded-t-3xl p-6 w-full max-h-[90vh] overflow-y-auto animate-slide-up">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold text-gray-900">Add a family member</h2>
+          <h2 className="header-custom">Add a family member</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
+            aria-label="Close modal"
           >
             <X className="w-6 h-6" />
           </button>
@@ -75,8 +98,9 @@ const AddFamilyMemberModal: React.FC<AddFamilyMemberModalProps> = ({ onClose, on
               type="text"
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              className="w-full px-4 py-4 bg-gray-100 border-0 rounded-2xl text-gray-900 placeholder-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-base"
+              className="input-field-custom"
               placeholder="Name"
+              aria-label="Family member name"
             />
           </div>
 
@@ -85,7 +109,8 @@ const AddFamilyMemberModal: React.FC<AddFamilyMemberModalProps> = ({ onClose, on
             <button
               type="button"
               onClick={() => setShowRelationshipDropdown(!showRelationshipDropdown)}
-              className="w-full px-4 py-4 bg-gray-100 border-0 rounded-2xl text-gray-900 placeholder-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all flex items-center justify-between text-base"
+              className="input-field-custom flex items-center justify-between"
+              aria-label="Select relationship"
             >
               <span className={formData.relationship ? 'text-gray-900' : 'text-purple-400'}>
                 {formData.relationship 
@@ -93,7 +118,7 @@ const AddFamilyMemberModal: React.FC<AddFamilyMemberModalProps> = ({ onClose, on
                   : 'Relationship'
                 }
               </span>
-              <ChevronDown className="w-5 h-5 text-purple-600" />
+              <ChevronDown className="w-5 h-5 text-custom-purple" />
             </button>
             
             {showRelationshipDropdown && (
@@ -121,8 +146,9 @@ const AddFamilyMemberModal: React.FC<AddFamilyMemberModalProps> = ({ onClose, on
               type="email"
               value={formData.email}
               onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-              className="w-full px-4 py-4 bg-gray-100 border-0 rounded-2xl text-gray-900 placeholder-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-base"
+              className="input-field-custom"
               placeholder="Email"
+              aria-label="Family member email"
             />
           </div>
 
@@ -133,17 +159,18 @@ const AddFamilyMemberModal: React.FC<AddFamilyMemberModalProps> = ({ onClose, on
               <button
                 type="button"
                 onClick={() => setShowIsoDropdown(!showIsoDropdown)}
-                className="px-4 py-4 bg-gray-100 border-0 rounded-2xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all flex items-center gap-2 text-base"
+                className="px-4 py-4 bg-custom-bg-input rounded-xl text-custom-text flex items-center gap-2 text-base"
+                aria-label="Select country code"
               >
                 <span>{formData.isoCode}</span>
-                <ChevronDown className="w-4 h-4 text-purple-600" />
+                <ChevronDown className="w-4 h-4 text-custom-purple" />
               </button>
               
               {showIsoDropdown && (
-                <div className="absolute top-full left-0 bg-white border border-gray-200 rounded-2xl mt-1 shadow-lg z-10 min-w-[140px]">
+                <div className="absolute top-full left-0 bg-white border border-gray-200 rounded-2xl mt-1 shadow-lg z-10 min-w-[200px] max-h-60 overflow-y-auto">
                   {isoCodes.map((iso) => (
                     <button
-                      key={iso.value}
+                      key={iso.label}
                       type="button"
                       onClick={() => {
                         setFormData(prev => ({ ...prev, isoCode: iso.value }));
@@ -163,8 +190,10 @@ const AddFamilyMemberModal: React.FC<AddFamilyMemberModalProps> = ({ onClose, on
               type="tel"
               value={formData.mobileNumber}
               onChange={(e) => setFormData(prev => ({ ...prev, mobileNumber: e.target.value }))}
-              className="flex-1 px-4 py-4 bg-gray-100 border-0 rounded-2xl text-gray-900 placeholder-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-base"
+              className="input-field-custom flex-1"
               placeholder="Mobile Number"
+              aria-label="Family member mobile number"
+              inputMode="tel"
             />
           </div>
 
@@ -173,7 +202,7 @@ const AddFamilyMemberModal: React.FC<AddFamilyMemberModalProps> = ({ onClose, on
             <button
               type="submit"
               disabled={!formData.name || !formData.relationship || !formData.email}
-              className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-base"
+              className="btn-primary-custom w-full"
             >
               Add to My Family
             </button>

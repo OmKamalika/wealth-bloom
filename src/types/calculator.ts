@@ -1,6 +1,8 @@
 // src/types/calculator.ts
 // Type definitions for the advanced wealth calculation engine
 
+import { EVTResults } from './evt';
+
 export interface CoreIdentityMatrix {
   age: number;
   gender: 'male' | 'female' | 'prefer_not_to_say';
@@ -40,9 +42,10 @@ export interface ChildrenEducationContext {
     name: string;
     age: number;
     academicPerformance: 'struggling' | 'average' | 'above_average' | 'exceptional';
-    interests: string[];
+    interests?: string[];
     educationAspirations: 'public_state' | 'public_premium' | 'private_state' | 'private_premium' | 'international';
     currentSchoolType: 'government' | 'private_vernacular' | 'private_english' | 'international';
+    gender?: 'male' | 'female' | 'other';
   }>;
 }
 
@@ -57,6 +60,7 @@ export interface FamilyCareContext {
     location: 'same_city' | 'different_city' | 'different_state';
   }>;
   spouseParents: Array<{
+    name: string;
     age: number;
     supportNeeded: boolean;
     location: string;
@@ -95,9 +99,9 @@ export interface CalculatorData {
   familyCareContext: FamilyCareContext;
   behavioralProfile: BehavioralFinanceProfile;
   complexityAnalysis: ComplexityRevealation;
-  currentStep: number;
-  email: string;
-  phoneNumber: string;
+  currentStep?: number;
+  email?: string;
+  phoneNumber?: string;
 }
 
 export interface WealthProjection {
@@ -122,18 +126,21 @@ export interface CalculationResults {
     factor: string; 
     impact: number; 
     description: string;
-    preventionStrategy: string;
+    preventionStrategy?: string;
   }>;
   familyImpact: {
     today: { netWorth: number; status: string };
     inheritance: { 
       year: number; 
-      children: Array<{ name: string; inheritance: number; age: number }> 
+      children: Array<{ name: string; inheritance: number; age?: number }> 
     };
     grandchildren: { 
       year: number; 
       inheritance: number; 
-      collegeShortfall: number 
+      collegeShortfall: number;
+      estimatedGrandchildren?: number;
+      inheritancePerGrandchild?: number;
+      futureEducationCost?: number;
     };
   };
   protectedScenario: {
@@ -145,19 +152,19 @@ export interface CalculationResults {
       impact: string;
       timelineExtension: number;
       costSavings: number;
-    }>;
+    }> | string[];
   };
   complexityAnalysis: {
     score: number;
     primaryComplexityDrivers: string[];
-    coordinationOpportunities: Array<{
+    coordinationOpportunities: string[] | Array<{
       opportunity: string;
       potentialSavings: number;
       implementationDifficulty: 'low' | 'medium' | 'high';
       timeToImplement: string;
     }>;
     optimizationPotential: number;
-    riskFactors: Array<{
+    riskFactors?: Array<{
       risk: string;
       probability: number;
       impact: number;
@@ -165,15 +172,34 @@ export interface CalculationResults {
     }>;
   };
   scenarioAnalysis: {
-    bestCase: { extinctionYear: number; probability: number; conditions: string[] };
-    mostLikely: { extinctionYear: number; probability: number; conditions: string[] };
-    worstCase: { extinctionYear: number; probability: number; conditions: string[] };
-    stressTests: Array<{
+    bestCase: { 
+      extinctionYear: number; 
+      probability: number;
+      conditions?: string[];
+    };
+    mostLikely: { 
+      extinctionYear: number; 
+      probability: number;
+      conditions?: string[];
+    };
+    worstCase: { 
+      extinctionYear: number; 
+      probability: number;
+      conditions?: string[];
+    };
+    stressTests?: Array<{
       scenario: string;
       extinctionYearImpact: number;
       wealthImpact: number;
-      recommendedPreparation: string;
+      probability: number;
+      description: string;
     }>;
+    statistics?: {
+      median: number;
+      mean: number;
+      standardDeviation: number;
+      confidenceInterval95: number[];
+    };
   };
   recommendations: {
     immediate: Array<{
@@ -194,4 +220,5 @@ export interface CalculationResults {
       expectedBenefit: string;
     }>;
   };
+  extremeValueAnalysis?: EVTResults; // Added EVT results
 }

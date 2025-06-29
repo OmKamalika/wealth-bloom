@@ -1,23 +1,39 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Zap, Droplets, Wifi, Eye, FileText, Users, Star, Calendar, Home, CreditCard, User } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Plus, Zap, Droplets, Wifi, Eye, FileText, Users, Star, Calendar, Home, CreditCard, User, LogOut } from 'lucide-react';
 import { FamilyMember, Bill } from '../types';
 import ParentBillPopup from './ParentBillPopup';
 import AddBillScreen from './AddBillScreen';
 import BillsScreen from './BillsScreen';
 import ConfirmPaymentScreen from './ConfirmPaymentScreen';
 import PaymentSuccessScreen from './PaymentSuccessScreen';
+import { useAuth } from '../contexts/AuthContext';
+import { fetchCountdownTimer, CountdownTimer, DEFAULT_COUNTDOWN_TIMER } from '../api/countdown-timer-api';
+import { updateCountdownTimer, saveCountdownTimer, loadCountdownTimer } from '../utils/countdownUtils';
 
 interface DashboardScreenProps {
   familyMembers: FamilyMember[];
   onAddBill: () => void;
+  onProfile: () => void;
+  onSignOut: () => void;
 }
 
-const DashboardScreen: React.FC<DashboardScreenProps> = ({ familyMembers, onAddBill }) => {
+const DashboardScreen: React.FC<DashboardScreenProps> = ({ 
+  familyMembers, 
+  onAddBill, 
+  onProfile,
+  onSignOut
+}) => {
   const [showBillPopup, setShowBillPopup] = useState(false);
   const [showAddBill, setShowAddBill] = useState(false);
   const [showBillsScreen, setShowBillsScreen] = useState(false);
   const [showConfirmPayment, setShowConfirmPayment] = useState(false);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+  const [countdownTimer, setCountdownTimer] = useState<CountdownTimer>(DEFAULT_COUNTDOWN_TIMER);
+  const [isLoadingTimer, setIsLoadingTimer] = useState(true);
+  const [lastUpdateTime, setLastUpdateTime] = useState<number>(Date.now());
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const { profile, user, signOut } = useAuth();
+  
   const [bills, setBills] = useState<Bill[]>([
     {
       id: '1',
@@ -63,6 +79,82 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ familyMembers, onAddB
     }
   }, [bills]);
 
+  // Fetch countdown timer data from Supabase
+  useEffect(() => {
+    const getCountdownTimer = async () => {
+      setIsLoadingTimer(true);
+      try {
+        // First check if we have a saved timer in local storage
+        const savedTimer = loadCountdownTimer();
+        
+        if (savedTimer) {
+          // Update the timer based on elapsed time since last update
+          const updatedTimer = updateCountdownTimer(savedTimer.timer, savedTimer.lastUpdate);
+          setCountdownTimer(updatedTimer);
+          setLastUpdateTime(Date.now());
+          saveCountdownTimer(updatedTimer);
+          setIsLoadingTimer(false);
+        } else if (user) {
+          // If no saved timer, fetch from Supabase
+          const timerData = await fetchCountdownTimer(user.id);
+          setCountdownTimer(timerData);
+          setLastUpdateTime(Date.now());
+          saveCountdownTimer(timerData);
+          setIsLoadingTimer(false);
+        } else {
+          // If no user is logged in, use default values
+          setCountdownTimer(DEFAULT_COUNTDOWN_TIMER);
+          setLastUpdateTime(Date.now());
+          saveCountdownTimer(DEFAULT_COUNTDOWN_TIMER);
+          setIsLoadingTimer(false);
+        }
+      } catch (error) {
+        console.error('Error fetching countdown timer:', error);
+        setCountdownTimer(DEFAULT_COUNTDOWN_TIMER);
+        setLastUpdateTime(Date.now());
+        saveCountdownTimer(DEFAULT_COUNTDOWN_TIMER);
+        setIsLoadingTimer(false);
+      }
+    };
+
+    getCountdownTimer();
+    
+    // Clean up any existing interval
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
+    };
+  }, [user]);
+  
+  // Set up the timer to update every hour
+  useEffect(() => {
+    // Don't start the timer until we've loaded the initial values
+    if (isLoadingTimer) return;
+    
+    // Update the timer every hour
+    const updateTimer = () => {
+      setCountdownTimer(prevTimer => {
+        const updatedTimer = updateCountdownTimer(prevTimer, lastUpdateTime);
+        setLastUpdateTime(Date.now());
+        saveCountdownTimer(updatedTimer);
+        return updatedTimer;
+      });
+    };
+    
+    // Set up an interval to update the timer every hour
+    timerIntervalRef.current = setInterval(updateTimer, 60 * 60 * 1000); // 1 hour in milliseconds
+    
+    // For development/testing purposes, you can use a shorter interval
+    // timerIntervalRef.current = setInterval(updateTimer, 10 * 1000); // 10 seconds for testing
+    
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
+    };
+  }, [isLoadingTimer, lastUpdateTime]);
+
   const handleAddBill = (billData: any) => {
     const newBill: Bill = {
       id: Date.now().toString(),
@@ -101,6 +193,19 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ familyMembers, onAddB
       case 'water': return <Droplets className="w-5 h-5" />;
       case 'wifi': return <Wifi className="w-5 h-5" />;
       default: return <FileText className="w-5 h-5" />;
+    }
+  };
+
+  const handleSignOut = async () => {
+    console.log('Sign out button clicked in DashboardScreen');
+    try {
+      // Call the signOut function from AuthContext
+      await signOut();
+      console.log('Sign out successful, navigating to landing page');
+      // Call the callback to navigate back to landing page
+      onSignOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
     }
   };
 
@@ -151,9 +256,15 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ familyMembers, onAddB
       {/* Header with Family */}
       <div className="px-6 py-8">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-xl font-bold text-gray-900">Family</h1>
-          <button className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-            <Plus className="w-5 h-5 text-gray-600" />
+          <h1 className="text-xl font-bold text-gray-900">
+            {profile?.full_name ? `Welcome, ${profile.full_name.split(' ')[0]}` : 'Family'}
+          </h1>
+          <button 
+            className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center"
+            onClick={onProfile}
+            aria-label="View profile"
+          >
+            <User className="w-5 h-5 text-gray-600" />
           </button>
         </div>
 
@@ -178,26 +289,41 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ familyMembers, onAddB
           </h2>
           <div className="grid grid-cols-4 gap-3 mb-4">
             <div className="bg-white rounded-xl p-3 text-center">
-              <div className="text-xl font-bold text-gray-900">47</div>
+              <div className="text-xl font-bold text-gray-900">
+                {isLoadingTimer ? '...' : countdownTimer.years.toString().padStart(2, '0')}
+              </div>
               <div className="text-xs text-gray-600">Years</div>
             </div>
             <div className="bg-white rounded-xl p-3 text-center">
-              <div className="text-xl font-bold text-gray-900">04</div>
+              <div className="text-xl font-bold text-gray-900">
+                {isLoadingTimer ? '...' : countdownTimer.months.toString().padStart(2, '0')}
+              </div>
               <div className="text-xs text-gray-600">Months</div>
             </div>
             <div className="bg-white rounded-xl p-3 text-center">
-              <div className="text-xl font-bold text-gray-900">3</div>
-              <div className="text-xs text-gray-600">weeks</div>
+              <div className="text-xl font-bold text-gray-900">
+                {isLoadingTimer ? '...' : countdownTimer.weeks.toString().padStart(2, '0')}
+              </div>
+              <div className="text-xs text-gray-600">Weeks</div>
             </div>
             <div className="bg-white rounded-xl p-3 text-center">
-              <div className="text-xl font-bold text-gray-900">5</div>
+              <div className="text-xl font-bold text-gray-900">
+                {isLoadingTimer ? '...' : countdownTimer.days.toString().padStart(2, '0')}
+              </div>
               <div className="text-xs text-gray-600">Days</div>
             </div>
           </div>
           <p className="text-center text-sm text-gray-600 mb-4">
             It take only 7 minutes to hit pause on that clock
           </p>
-          <button className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold py-3 px-6 rounded-2xl">
+          <button 
+            className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold py-3 px-6 rounded-2xl"
+            onClick={() => {
+              // Here you would implement the action to stop the clock
+              // For now, we'll just log a message
+              console.log('Stop the clock button clicked');
+            }}
+          >
             Stop the clock
           </button>
         </div>
@@ -360,6 +486,15 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ familyMembers, onAddB
             </div>
           </div>
         </div>
+        
+        {/* Sign Out Button */}
+        <button
+          onClick={handleSignOut}
+          className="w-full flex items-center justify-center gap-2 py-4 px-6 bg-gray-100 text-gray-700 rounded-2xl hover:bg-gray-200 transition-colors mb-8"
+        >
+          <LogOut className="w-5 h-5" />
+          Sign Out
+        </button>
       </div>
 
       {/* Bottom Navigation */}
@@ -381,7 +516,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ familyMembers, onAddB
             <Calendar className="w-5 h-5 text-gray-400" />
             <span className="text-xs text-gray-400">Finances</span>
           </button>
-          <button className="flex flex-col items-center gap-1">
+          <button 
+            className="flex flex-col items-center gap-1"
+            onClick={onProfile}
+          >
             <User className="w-5 h-5 text-gray-400" />
             <span className="text-xs text-gray-400">Account</span>
           </button>

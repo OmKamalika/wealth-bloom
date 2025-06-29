@@ -69,4 +69,8 @@ export type Screen =
   | 'add-bill'
   | 'bills'
   | 'confirm-payment'
-  | 'payment-success';
+  | 'payment-success'
+  | 'signin'
+  | 'signup'
+  | 'password-reset'
+  | 'profile';

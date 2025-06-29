@@ -1,5 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { WealthProjection } from '../utils/wealthCalculations';
+import { useCurrency } from '../contexts/CurrencyContext';
+import { formatCurrency } from '../utils/currencyUtils';
 
 interface InteractiveWealthTimelineProps {
   projections: WealthProjection[];
@@ -21,6 +23,12 @@ const InteractiveWealthTimeline: React.FC<InteractiveWealthTimelineProps> = ({
   const [hoveredPoint, setHoveredPoint] = useState<{ year: number; wealth: number; x: number; y: number } | null>(null);
   const [showProtected, setShowProtected] = useState(false);
   const [animationProgress, setAnimationProgress] = useState(0);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [selectedScenario, setSelectedScenario] = useState<'mostLikely' | 'bestCase' | 'worstCase'>('mostLikely');
+  const { currencyInfo } = useCurrency();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -45,7 +53,7 @@ const InteractiveWealthTimeline: React.FC<InteractiveWealthTimelineProps> = ({
 
     animate();
     drawTimeline(ctx, rect.width, rect.height);
-  }, [projections, animationProgress, showProtected]);
+  }, [projections, animationProgress, showProtected, zoomLevel, panOffset, selectedScenario, currencyInfo]);
 
   const drawTimeline = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
     ctx.clearRect(0, 0, width, height);
@@ -59,11 +67,19 @@ const InteractiveWealthTimeline: React.FC<InteractiveWealthTimelineProps> = ({
     const minYear = 2025;
     const maxYear = Math.max(extinctionYear + 10, 2090);
 
-    const xScale = (year: number) => padding + ((year - minYear) / (maxYear - minYear)) * chartWidth;
-    const yScale = (wealth: number) => height - padding - (wealth / maxWealth) * chartHeight;
+    // Apply zoom and pan transformations
+    const xScale = (year: number) => {
+      const baseX = padding + ((year - minYear) / (maxYear - minYear)) * chartWidth;
+      return baseX * zoomLevel + panOffset.x;
+    };
+    
+    const yScale = (wealth: number) => {
+      const baseY = height - padding - (wealth / maxWealth) * chartHeight;
+      return baseY * zoomLevel + panOffset.y;
+    };
 
     // Draw grid
-    drawGrid(ctx, width, height, padding, minYear, maxYear, maxWealth);
+    drawGrid(ctx, width, height, padding, minYear, maxYear, maxWealth, xScale, yScale);
 
     // Draw wealth decline path
     drawWealthPath(ctx, projections, xScale, yScale, animationProgress);
@@ -75,6 +91,11 @@ const InteractiveWealthTimeline: React.FC<InteractiveWealthTimelineProps> = ({
 
     // Draw key milestones
     drawMilestones(ctx, projections, xScale, yScale, extinctionYear);
+
+    // Draw confidence bands
+    if (projections.length > 0 && projections[0].confidenceLevel) {
+      drawConfidenceBands(ctx, projections, xScale, yScale, animationProgress);
+    }
 
     // Draw hover tooltip
     if (hoveredPoint) {
@@ -89,14 +110,16 @@ const InteractiveWealthTimeline: React.FC<InteractiveWealthTimelineProps> = ({
     padding: number,
     minYear: number,
     maxYear: number,
-    maxWealth: number
+    maxWealth: number,
+    xScale: (year: number) => number,
+    yScale: (wealth: number) => number
   ) => {
     ctx.strokeStyle = '#e5e7eb';
     ctx.lineWidth = 1;
 
     // Vertical grid lines (years)
     for (let year = minYear; year <= maxYear; year += 10) {
-      const x = padding + ((year - minYear) / (maxYear - minYear)) * (width - 2 * padding);
+      const x = xScale(year);
       ctx.beginPath();
       ctx.moveTo(x, padding);
       ctx.lineTo(x, height - padding);
@@ -112,7 +135,7 @@ const InteractiveWealthTimeline: React.FC<InteractiveWealthTimelineProps> = ({
     // Horizontal grid lines (wealth)
     for (let i = 0; i <= 5; i++) {
       const wealth = (maxWealth / 5) * i;
-      const y = height - padding - (wealth / maxWealth) * (height - 2 * padding);
+      const y = yScale(wealth);
       
       ctx.beginPath();
       ctx.moveTo(padding, y);
@@ -123,7 +146,14 @@ const InteractiveWealthTimeline: React.FC<InteractiveWealthTimelineProps> = ({
       ctx.fillStyle = '#6b7280';
       ctx.font = '12px sans-serif';
       ctx.textAlign = 'right';
-      ctx.fillText(`$${(wealth / 1000).toFixed(0)}K`, padding - 10, y + 4);
+      
+      // Format wealth with locale and currency
+      const formattedWealth = formatCurrency(wealth, currencyInfo, {
+        maximumFractionDigits: 0,
+        notation: 'compact'
+      });
+      
+      ctx.fillText(formattedWealth, padding - 10, y + 4);
     }
   };
 
@@ -224,6 +254,41 @@ const InteractiveWealthTimeline: React.FC<InteractiveWealthTimelineProps> = ({
     ctx.setLineDash([]);
   };
 
+  const drawConfidenceBands = (
+    ctx: CanvasRenderingContext2D,
+    projections: WealthProjection[],
+    xScale: (year: number) => number,
+    yScale: (wealth: number) => number,
+    progress: number
+  ) => {
+    const visibleProjections = projections.slice(0, Math.floor(projections.length * progress));
+    
+    // Draw upper confidence band (75% confidence)
+    ctx.fillStyle = 'rgba(16, 185, 129, 0.1)';
+    ctx.beginPath();
+    visibleProjections.forEach((projection, index) => {
+      const x = xScale(projection.year);
+      const upperY = yScale(projection.wealth * (1 + (1 - projection.confidenceLevel)));
+      
+      if (index === 0) {
+        ctx.moveTo(x, upperY);
+      } else {
+        ctx.lineTo(x, upperY);
+      }
+    });
+    
+    // Connect to lower confidence band
+    for (let i = visibleProjections.length - 1; i >= 0; i--) {
+      const projection = visibleProjections[i];
+      const x = xScale(projection.year);
+      const lowerY = yScale(projection.wealth * (1 - (1 - projection.confidenceLevel)));
+      ctx.lineTo(x, lowerY);
+    }
+    
+    ctx.closePath();
+    ctx.fill();
+  };
+
   const drawMilestones = (
     ctx: CanvasRenderingContext2D,
     projections: WealthProjection[],
@@ -246,28 +311,70 @@ const InteractiveWealthTimeline: React.FC<InteractiveWealthTimelineProps> = ({
     ctx.textAlign = 'center';
     ctx.fillText('💀 EXTINCTION', extinctionX, extinctionY - 15);
     ctx.fillText(extinctionYear.toString(), extinctionX, extinctionY - 30);
+
+    // Draw major life events from projections
+    projections.forEach(projection => {
+      if (projection.majorEvents && projection.majorEvents.length > 0) {
+        const x = xScale(projection.year);
+        const y = yScale(projection.wealth);
+        
+        // Draw event marker
+        ctx.fillStyle = '#6366f1'; // Indigo color for events
+        ctx.beginPath();
+        ctx.arc(x, y - 15, 6, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Only show event label on hover to avoid cluttering
+        if (hoveredPoint && Math.abs(hoveredPoint.year - projection.year) < 2) {
+          ctx.fillStyle = '#6366f1';
+          ctx.font = '12px sans-serif';
+          ctx.textAlign = 'center';
+          
+          // Show first event (could be enhanced to show all events)
+          if (projection.majorEvents[0]) {
+            const eventText = projection.majorEvents[0];
+            const textWidth = ctx.measureText(eventText).width;
+            
+            // Draw background for better readability
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.fillRect(x - textWidth/2 - 5, y - 45, textWidth + 10, 20);
+            
+            // Draw text
+            ctx.fillStyle = '#6366f1';
+            ctx.fillText(eventText, x, y - 30);
+          }
+        }
+      }
+    });
   };
 
   const drawTooltip = (
     ctx: CanvasRenderingContext2D,
     point: { year: number; wealth: number; x: number; y: number }
   ) => {
-    const tooltipWidth = 120;
-    const tooltipHeight = 60;
-    const tooltipX = point.x - tooltipWidth / 2;
-    const tooltipY = point.y - tooltipHeight - 10;
+    const tooltipWidth = 140;
+    const tooltipHeight = 70;
+    const tooltipX = Math.min(point.x - tooltipWidth / 2, ctx.canvas.width - tooltipWidth - 10);
+    const tooltipY = Math.max(point.y - tooltipHeight - 15, 10);
 
-    // Tooltip background
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    // Tooltip background with higher opacity for better visibility
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    ctx.beginPath();
     ctx.roundRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight, 8);
     ctx.fill();
 
-    // Tooltip text
+    // Tooltip text with larger font for better readability
     ctx.fillStyle = 'white';
-    ctx.font = '12px sans-serif';
+    ctx.font = 'bold 14px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`Year: ${point.year}`, tooltipX + tooltipWidth / 2, tooltipY + 20);
-    ctx.fillText(`Wealth: $${(point.wealth / 1000).toFixed(0)}K`, tooltipX + tooltipWidth / 2, tooltipY + 40);
+    ctx.fillText(`Year: ${point.year}`, tooltipX + tooltipWidth / 2, tooltipY + 25);
+    
+    // Format wealth with locale and currency
+    const formattedWealth = formatCurrency(point.wealth, currencyInfo, {
+      maximumFractionDigits: 0
+    });
+    
+    ctx.fillText(`Wealth: ${formattedWealth}`, tooltipX + tooltipWidth / 2, tooltipY + 50);
   };
 
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -278,13 +385,32 @@ const InteractiveWealthTimeline: React.FC<InteractiveWealthTimelineProps> = ({
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
 
+    if (isDragging) {
+      // Calculate pan distance
+      const dx = x - dragStart.x;
+      const dy = y - dragStart.y;
+      
+      // Update pan offset
+      setPanOffset(prev => ({
+        x: prev.x + dx,
+        y: prev.y + dy
+      }));
+      
+      // Update drag start position
+      setDragStart({ x, y });
+      return;
+    }
+
     // Find closest data point
     const padding = 60;
     const chartWidth = rect.width - 2 * padding;
     const minYear = 2025;
     const maxYear = Math.max(extinctionYear + 10, 2090);
     
-    const yearAtMouse = minYear + ((x - padding) / chartWidth) * (maxYear - minYear);
+    // Adjust for zoom and pan
+    const adjustedX = (x - panOffset.x) / zoomLevel;
+    const yearAtMouse = minYear + ((adjustedX - padding) / chartWidth) * (maxYear - minYear);
+    
     const closestProjection = projections.reduce((closest, current) => {
       return Math.abs(current.year - yearAtMouse) < Math.abs(closest.year - yearAtMouse) ? current : closest;
     });
@@ -303,6 +429,44 @@ const InteractiveWealthTimeline: React.FC<InteractiveWealthTimelineProps> = ({
     setHoveredPoint(null);
   };
 
+  const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    
+    setIsDragging(true);
+    setDragStart({ x, y });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
+    event.preventDefault();
+    
+    // Calculate zoom factor
+    const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9;
+    
+    // Limit zoom level
+    const newZoomLevel = Math.max(0.5, Math.min(3, zoomLevel * zoomFactor));
+    
+    setZoomLevel(newZoomLevel);
+  };
+
+  const handleResetView = () => {
+    setZoomLevel(1);
+    setPanOffset({ x: 0, y: 0 });
+  };
+
+  const handleScenarioChange = (scenario: 'mostLikely' | 'bestCase' | 'worstCase') => {
+    setSelectedScenario(scenario);
+    // In a real implementation, this would trigger loading different projection data
+  };
+
   return (
     <div className="bg-white rounded-2xl p-6 shadow-lg">
       <div className="flex items-center justify-between mb-4">
@@ -319,12 +483,46 @@ const InteractiveWealthTimeline: React.FC<InteractiveWealthTimelineProps> = ({
             {showProtected ? 'Hide' : 'Show'} Protected Scenario
           </button>
           <button
-            onClick={() => setAnimationProgress(0)}
-            className="px-3 py-1 rounded-lg text-sm font-medium bg-purple-100 text-purple-800 hover:bg-purple-200 transition-colors"
+            onClick={handleResetView}
+            className="px-3 py-1 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
           >
-            Replay Animation
+            Reset View
           </button>
         </div>
+      </div>
+      
+      {/* Scenario selector */}
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => handleScenarioChange('mostLikely')}
+          className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+            selectedScenario === 'mostLikely' 
+              ? 'bg-purple-100 text-purple-800' 
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          Most Likely
+        </button>
+        <button
+          onClick={() => handleScenarioChange('bestCase')}
+          className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+            selectedScenario === 'bestCase' 
+              ? 'bg-green-100 text-green-800' 
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          Best Case
+        </button>
+        <button
+          onClick={() => handleScenarioChange('worstCase')}
+          className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+            selectedScenario === 'worstCase' 
+              ? 'bg-red-100 text-red-800' 
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          Worst Case
+        </button>
       </div>
       
       <canvas
@@ -332,6 +530,10 @@ const InteractiveWealthTimeline: React.FC<InteractiveWealthTimelineProps> = ({
         className="w-full h-80 cursor-crosshair"
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onWheel={handleWheel}
+        aria-label="Interactive wealth timeline chart showing wealth projection over time"
       />
       
       <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
@@ -351,6 +553,12 @@ const InteractiveWealthTimeline: React.FC<InteractiveWealthTimelineProps> = ({
           <div className="font-medium">Extinction: {extinctionYear}</div>
           <div className="text-xs">Hover to explore timeline</div>
         </div>
+      </div>
+      
+      <div className="mt-4 text-sm text-gray-600">
+        <p className="text-center">
+          <span role="img" aria-label="Tip">💡</span> Tip: Use mouse wheel to zoom, click and drag to pan
+        </p>
       </div>
     </div>
   );

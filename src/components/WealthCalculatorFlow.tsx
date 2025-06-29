@@ -1,1129 +1,465 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowRight, ArrowLeft, AlertTriangle, TrendingUp, Users, Heart, Brain, Calculator, Clock, Shield } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowRight, ArrowLeft, AlertTriangle, TrendingUp, Users, Heart, Brain, Clock, Shield, Calculator } from 'lucide-react';
+import { calculateWealthExtinction } from '../api/calculate-wealth-api';
+import { performBasicCalculation } from '../api/tiered-calculation-api';
+import { AgeSlider } from './AgeSlider';
+import { useCurrency } from '../contexts/CurrencyContext';
+import { formatCurrency } from '../utils/currencyUtils';
+import { BasicCalculationInputs } from '../types/tiered-calculation';
+import { useAuth } from '../contexts/AuthContext';
+import { getOptimizedLocation } from '../utils/geolocation';
+import { CalculatorData } from '../types/calculator';
 
-// Enhanced interfaces based on wireframes
-interface CoreIdentityMatrix {
-  age: number;
-  gender: 'male' | 'female' | 'prefer_not_to_say';
-  maritalStatus: 'single' | 'married' | 'divorced' | 'widowed';
-  location: {
-    state: string;
-    city: string;
-    zipCode: string;
-    cityType: 'metro' | 'tier2' | 'tier3' | 'rural';
-  };
-  education: {
-    level: 'high_school' | 'bachelors' | 'masters' | 'professional' | 'phd';
-    institution: 'tier1' | 'tier2' | 'tier3';
-  };
-  employment: {
-    status: 'corporate' | 'business_owner' | 'self_employed';
-    industry: string;
-    roleLevel: 'junior' | 'mid' | 'senior' | 'leadership';
-  };
-  financialSophistication: 'expert' | 'good' | 'moderate' | 'beginner';
-}
+// Type for form section names
+type FormSection = keyof CalculatorData;
 
-interface FinancialFoundation {
-  currentNetWorth: number;
-  annualIncome: number;
-  primaryIncomeSource: 'salary' | 'business' | 'mixed';
-  investmentAllocation: {
-    stocks: number;
-    bonds: number;
-    realEstate: number;
-    alternatives: number;
-  };
-}
-
-interface ChildrenEducationContext {
-  children: Array<{
-    name: string;
-    age: number;
-    academicPerformance: 'struggling' | 'average' | 'above_average' | 'exceptional';
-    interests: string[];
-    educationAspirations: 'public_state' | 'public_premium' | 'private_state' | 'private_premium' | 'international';
-    currentSchoolType: 'government' | 'private_vernacular' | 'private_english' | 'international';
-  }>;
-}
-
-interface FamilyCareContext {
-  parents: Array<{
-    name: string;
-    age: number;
-    healthStatus: 'excellent' | 'good' | 'fair' | 'poor';
-    financialIndependence: 'independent' | 'occasional_support' | 'regular_support' | 'full_dependency';
-    currentMonthlyCost: number;
-    livingArrangement: 'independent' | 'assisted' | 'with_family';
-    location: 'same_city' | 'different_city' | 'different_state';
-  }>;
-  spouseParents: Array<{
-    age: number;
-    supportNeeded: boolean;
-    location: string;
-  }>;
-  siblings: Array<{
-    relationshipQuality: 'close' | 'good' | 'strained' | 'non_communicative';
-    financialCapacity: 'strong' | 'moderate' | 'limited';
-    careInvolvement: 'high' | 'moderate' | 'low';
-  }>;
-  familyCoordination: 'excellent' | 'good' | 'chaotic' | 'poor';
-}
-
-interface BehavioralFinanceProfile {
-  riskTolerance: 'conservative' | 'moderate' | 'aggressive';
-  marketCrashResponse: 'panic_sell' | 'worry_hold' | 'buying_opportunity' | 'ignore_it';
-  biggestFear: 'retirement_insufficient' | 'burden_children' | 'wrong_decisions' | 'parent_care_costs';
-  planningApproach: 'detailed_research' | 'important_overwhelming' | 'delegate_experts' | 'avoid_thinking';
-  reviewFrequency: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'rarely';
-}
-
-interface ComplexityRevealation {
-  complexityScore: number;
-  majorDecisions: Array<{
-    year: number;
-    decision: string;
-    impact: 'high' | 'medium' | 'low';
-  }>;
-  interconnections: string[];
-  sandwichGenerationOverload: boolean;
-}
-
-interface CalculatorData {
-  coreIdentity: CoreIdentityMatrix;
-  financialFoundation: FinancialFoundation;
-  childrenContext: ChildrenEducationContext;
-  familyCareContext: FamilyCareContext;
-  behavioralProfile: BehavioralFinanceProfile;
-  complexityAnalysis: ComplexityRevealation;
-  currentStep: number;
-  email: string;
-  phoneNumber: string;
-}
-
-interface QuestionConfig {
-  id: string;
-  phase: 'foundation' | 'personal_investment' | 'complexity_revelation' | 'email_capture';
-  title: string;
-  subtitle?: string;
-  subtitleFn?: (data: CalculatorData) => string;
-  type: 'single_choice' | 'multiple_choice' | 'slider' | 'text_input' | 'dual_slider' | 'family_builder' | 'complexity_reveal';
-  condition?: (data: CalculatorData) => boolean;
-  options?: Array<{
-    value: string;
-    label: string;
-    description?: string;
-    complexityImpact?: number;
-    emoji?: string;
-  }>;
-  sliderConfig?: {
-    min: number;
-    max: number;
-    step: number;
-    unit: string;
-    formatter?: (value: number) => string;
-  };
-  insight?: (data: CalculatorData) => string;
-  complexityThreshold?: number;
-  smartDefaults?: (data: CalculatorData) => any;
-}
-
+// This is a multi-step form implementation of the calculator
 const WealthCalculatorFlow: React.FC<{
   onComplete: (data: any) => void;
   onBack: () => void;
 }> = ({ onComplete, onBack }) => {
-  const [data, setData] = useState<CalculatorData>({
+  const [currentStep, setCurrentStep] = useState(1);
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [calculationError, setCalculationError] = useState<string | null>(null);
+  const { currencyInfo } = useCurrency();
+  const { user } = useAuth();
+  
+  // Form data state
+  const [calculatorData, setCalculatorData] = useState<CalculatorData>({
     coreIdentity: {
-      age: 42,
+      age: 35,
       gender: 'prefer_not_to_say',
       maritalStatus: 'married',
-      location: { state: '', city: '', zipCode: '', cityType: 'metro' },
-      education: { level: 'masters', institution: 'tier2' },
-      employment: { status: 'corporate', industry: 'technology', roleLevel: 'mid' },
-      financialSophistication: 'moderate'
+      location: {
+        city: 'Mumbai',
+        state: 'Maharashtra',
+        zipCode: '',
+        cityType: 'metro'
+      },
+      education: {
+        level: 'bachelors',
+        institution: 'tier2'
+      },
+      financialSophistication: 'moderate',
+      employment: {
+        status: 'corporate',
+        industry: 'technology',
+        roleLevel: 'mid'
+      }
     },
     financialFoundation: {
-      currentNetWorth: 750000,
-      annualIncome: 180000,
+      currentNetWorth: 5000000, // ₹50L
+      annualIncome: 1200000, // ₹12L
       primaryIncomeSource: 'salary',
-      investmentAllocation: { stocks: 60, bonds: 30, realEstate: 10, alternatives: 0 }
+      investmentAllocation: {
+        stocks: 0.6,
+        bonds: 0.3,
+        realEstate: 0.1,
+        alternatives: 0
+      }
     },
-    childrenContext: { children: [] },
+    childrenContext: {
+      children: [
+        {
+          name: 'Arjun',
+          age: 8,
+          academicPerformance: 'above_average',
+          educationAspirations: 'private_premium',
+          currentSchoolType: 'private_english'
+        },
+        {
+          name: 'Meera',
+          age: 5,
+          academicPerformance: 'exceptional',
+          educationAspirations: 'international',
+          currentSchoolType: 'international'
+        }
+      ]
+    },
     familyCareContext: {
-      parents: [],
-      spouseParents: [],
+      parents: [
+        {
+          name: 'Father',
+          age: 65,
+          healthStatus: 'good',
+          financialIndependence: 'independent',
+          currentMonthlyCost: 0,
+          livingArrangement: 'independent',
+          location: 'same_city'
+        },
+        {
+          name: 'Mother',
+          age: 62,
+          healthStatus: 'fair',
+          financialIndependence: 'occasional_support',
+          currentMonthlyCost: 15000,
+          livingArrangement: 'independent',
+          location: 'same_city'
+        }
+      ],
       siblings: [],
+      spouseParents: [],
       familyCoordination: 'good'
     },
     behavioralProfile: {
       riskTolerance: 'moderate',
       marketCrashResponse: 'worry_hold',
-      biggestFear: 'burden_children',
+      biggestFear: 'retirement_insufficient',
       planningApproach: 'important_overwhelming',
       reviewFrequency: 'monthly'
     },
     complexityAnalysis: {
-      complexityScore: 1.2,
+      complexityScore: 6.8,
       majorDecisions: [],
       interconnections: [],
-      sandwichGenerationOverload: false
-    },
-    currentStep: 1,
-    email: '',
-    phoneNumber: ''
+      sandwichGenerationOverload: true
+    }
   });
 
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [insights, setInsights] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedOption, setSelectedOption] = useState<string | null>(null);
-
-  // Track previous selections and their complexity impacts
-  const [previousSelections, setPreviousSelections] = useState<Record<string, { value: string, impact: number }>>({});
-
-  // Progressive question flow based on wireframes
-  const questionFlow: QuestionConfig[] = [
-    // Phase 1: Foundation Building - Confidence Creator (Q1-7)
-    {
-      id: 'age_basic',
-      phase: 'foundation',
-      title: "Let's start with the basics - what's your current age?",
-      subtitle: "This helps us project your family's wealth timeline",
-      type: 'slider',
-      sliderConfig: { min: 25, max: 75, step: 1, unit: 'years', formatter: (v) => `${v} years old` },
-      insight: (data) => `You have ${65 - data.coreIdentity.age} productive years to build generational wealth for your family`
-    },
-    {
-      id: 'marital_status',
-      phase: 'foundation',
-      title: "What's your current marital status?",
-      subtitle: "Family structure dramatically affects wealth preservation strategy",
-      type: 'single_choice',
-      options: [
-        { value: 'single', label: 'Single', description: 'Full control, solo responsibility', complexityImpact: 0.5, emoji: '👤' },
-        { value: 'married', label: 'Married', description: 'Building together, shared decisions', complexityImpact: 1.0, emoji: '💕' },
-        { value: 'divorced', label: 'Divorced', description: 'Rebuilding carefully', complexityImpact: 1.5, emoji: '💔' },
-        { value: 'widowed', label: 'Widowed', description: 'Managing legacy alone', complexityImpact: 1.8, emoji: '🖤' }
-      ]
-    },
-    {
-      id: 'employment_context',
-      phase: 'foundation',
-      title: "What's your current employment situation?",
-      subtitle: "Career context affects income stability and wealth building potential",
-      type: 'single_choice',
-      options: [
-        { value: 'corporate', label: '🏢 Corporate Employee', description: 'Stable income, limited time', complexityImpact: 0.3 },
-        { value: 'business_owner', label: '🚀 Business Owner', description: 'Higher risk, higher reward potential', complexityImpact: 1.2 },
-        { value: 'self_employed', label: '👩‍💻 Self-Employed', description: 'Freedom but uncertainty', complexityImpact: 0.8 }
-      ]
-    },
-    {
-      id: 'education_sophistication',
-      phase: 'foundation',
-      title: "What's your educational background?",
-      subtitle: "Education level helps us tailor complexity and expectations",
-      type: 'single_choice',
-      options: [
-        { value: 'high_school', label: '🎓 High School/12th Standard', complexityImpact: 0.2 },
-        { value: 'bachelors', label: '🎓 Bachelor\'s Degree', complexityImpact: 0.4 },
-        { value: 'masters', label: '🎓 Master\'s Degree (MBA/MTech)', complexityImpact: 0.6 },
-        { value: 'professional', label: '🎓 Professional Degree (CA/CS/Medical/Law)', complexityImpact: 0.8 },
-        { value: 'phd', label: '🎓 PhD/Doctoral', complexityImpact: 1.0 }
-      ],
-      insight: (data) => data.coreIdentity.education.level === 'masters' ? 
-        "Your education suggests good analytical ability, but family wealth planning has unique complexities..." : ""
-    },
-    {
-      id: 'net_worth_income',
-      phase: 'foundation',
-      title: "What's your current household net worth and income?",
-      subtitle: "Include home equity, investments, savings, and annual household income",
-      type: 'dual_slider',
-      sliderConfig: { min: 0, max: 50000000, step: 50000, unit: '₹', formatter: (v) => `₹${(v/100000).toFixed(1)}L` },
-      insight: (data) => {
-        const percentile = calculateWealthPercentile(data.financialFoundation.currentNetWorth, data.coreIdentity.age);
-        return `You're in the top ${100 - percentile}% of Indian households by wealth`;
+  // Handle form field changes with proper typing
+  const handleInputChange = (section: string, field: string, value: any) => {
+    setCalculatorData(prevData => ({
+      ...prevData,
+      [section]: {
+        ...(prevData[section as keyof CalculatorData] as Record<string, any>),
+        [field]: value
       }
-    },
-    {
-      id: 'children_count',
-      phase: 'foundation',
-      title: "How many children do you have?",
-      subtitle: "This is where it gets personal... Each child's education could cost ₹50L-2Cr by graduation",
-      subtitleFn: (data: CalculatorData) => {
-        if (data.coreIdentity.maritalStatus === 'single') {
-          return "If you plan to have children in the future, let us know. Otherwise, you can skip this.";
+    }));
+  };
+
+  // Handle nested field changes with proper typing
+  const handleNestedInputChange = (section: string, parentField: string, field: string, value: any) => {
+    setCalculatorData(prevData => ({
+      ...prevData,
+      [section]: {
+        ...(prevData[section as keyof CalculatorData] as Record<string, any>),
+        [parentField]: {
+          ...((prevData[section as keyof CalculatorData] as Record<string, any>)[parentField] as Record<string, any>),
+          [field]: value
         }
-        return "This is where it gets personal... Each child's education could cost ₹50L-2Cr by graduation";
-      },
-      type: 'single_choice',
-      condition: (data: CalculatorData) => ['married', 'divorced', 'widowed'].includes(data.coreIdentity.maritalStatus) || (data.coreIdentity.maritalStatus === 'single' && data.childrenContext.children.length > 0),
-      options: [
-        { value: '0', label: '0', description: 'Planning children or child-free', complexityImpact: 0, emoji: '🤔' },
-        { value: '1', label: '1', description: 'Focused investment in one future', complexityImpact: 1.2, emoji: '👶' },
-        { value: '2', label: '2', description: 'Balancing multiple dreams', complexityImpact: 2.1, emoji: '👧👦' },
-        { value: '3', label: '3', description: 'Complex coordination required', complexityImpact: 3.2, emoji: '👨‍👩‍👧‍👦' },
-        { value: '4+', label: '4+', description: 'Large family dynamics', complexityImpact: 4.5, emoji: '👨‍👩‍👧‍👦👶' }
-      ]
-    },
-    {
-      id: 'location_context',
-      phase: 'foundation',
-      title: "Where is your family based?",
-      subtitle: "Location affects education costs, parent care options, and lifestyle expenses",
-      type: 'single_choice',
-      options: [
-        { value: 'metro', label: '🌆 Metro (Mumbai/Delhi/Bangalore)', description: 'High costs, excellent opportunities', complexityImpact: 1.2 },
-        { value: 'tier2', label: '🏙️ Tier 2 (Pune/Ahmedabad/Kochi)', description: 'Balanced costs and opportunities', complexityImpact: 0.8 },
-        { value: 'tier3', label: '🏘️ Tier 3 (Smaller cities)', description: 'Lower costs, limited options', complexityImpact: 0.5 },
-        { value: 'rural', label: '🌾 Rural/Semi-urban', description: 'Very low costs, basic facilities', complexityImpact: 0.3 }
-      ]
-    },
-
-    // Phase 2: Personal Investment - Stakes Get Real (Q8-15)
-    {
-      id: 'children_details',
-      phase: 'personal_investment',
-      title: "Tell us about your children - this gets personal",
-      subtitle: "Each child's individual dreams require individual strategies",
-      subtitleFn: (data: CalculatorData) => `You mentioned having ${data.childrenContext.children.length} child${data.childrenContext.children.length === 1 ? '' : 'ren'}. Each child's individual dreams require individual strategies`,
-      type: 'family_builder',
-      condition: (data: CalculatorData) => data.childrenContext.children.length > 0,
-      complexityThreshold: 3.0
-    },
-    {
-      id: 'parents_father',
-      phase: 'personal_investment',
-      title: "The tough questions - Your father's situation",
-      subtitle: "Parent care affects your timeline more than market crashes",
-      type: 'single_choice',
-      options: [
-        { value: 'excellent_independent', label: '👴 Excellent health, completely independent', complexityImpact: 0.3 },
-        { value: 'good_some_support', label: '👴 Good health, needs some monthly support', complexityImpact: 1.5 },
-        { value: 'fair_regular_support', label: '👴 Fair health, regular financial support needed', complexityImpact: 2.3 },
-        { value: 'declining_significant', label: '👴 Declining health, significant care responsibilities', complexityImpact: 3.8 }
-      ],
-      complexityThreshold: 5.0
-    },
-    {
-      id: 'parents_mother',
-      phase: 'personal_investment',
-      title: "Your mother's situation",
-      subtitle: "Dependent spouses create 2.3x higher care complexity when primary earner needs care",
-      type: 'single_choice',
-      options: [
-        { value: 'excellent_independent', label: '👵 Excellent health, financially independent', complexityImpact: 0.3 },
-        { value: 'good_dependent', label: '👵 Good health, financially dependent on father', complexityImpact: 1.5 },
-        { value: 'health_challenges', label: '👵 Health challenges, needs coordinated care', complexityImpact: 2.8 },
-        { value: 'cascade_risk', label: '👵 High care needs if father\'s health declines', complexityImpact: 4.2 }
-      ]
-    },
-    {
-      id: 'sibling_coordination',
-      phase: 'personal_investment',
-      title: "Family coordination dynamics - How many siblings share parent care?",
-      subtitle: "Geographic spread and mixed financial capacities create coordination complexity",
-      type: 'single_choice',
-      condition: (data: CalculatorData) => data.complexityAnalysis.complexityScore > 5.0,
-      options: [
-        { value: 'no_siblings', label: '0 - Only child (all responsibility on you)', complexityImpact: 2.0 },
-        { value: 'one_sibling', label: '1 sibling - Shared responsibility', complexityImpact: 1.0 },
-        { value: 'two_siblings', label: '2 siblings - Coordination needed', complexityImpact: 1.5 },
-        { value: 'multiple_siblings', label: '3+ siblings - Complex coordination', complexityImpact: 2.5 }
-      ]
-    },
-    {
-      id: 'marriage_dynamics',
-      phase: 'personal_investment',
-      title: "Marriage & spouse's family situation",
-      subtitle: "You might be managing 4 aging parents across multiple cities",
-      subtitleFn: (data: CalculatorData) => data.coreIdentity.maritalStatus === 'married' ? "You might be managing 4 aging parents across multiple cities" : "(Skipped: Not married)",
-      type: 'single_choice',
-      condition: (data: CalculatorData) => data.coreIdentity.maritalStatus === 'married',
-      options: [
-        { value: 'spouse_independent', label: '💑 Spouse\'s parents are independent', complexityImpact: 0.2 },
-        { value: 'spouse_some_support', label: '💑 Spouse\'s parents need occasional support', complexityImpact: 1.2 },
-        { value: 'sandwich_overload', label: '💑 Both sets of aging parents need support', complexityImpact: 3.5 },
-        { value: 'four_parents_crisis', label: '💑 Managing 4 aging parents across cities', complexityImpact: 5.0 }
-      ]
-    },
-    {
-      id: 'career_trajectory',
-      phase: 'personal_investment',
-      title: "Your career & income trajectory",
-      subtitle: "Technology sector creates unique wealth risks - age bias, skill obsolescence",
-      type: 'single_choice',
-      options: [
-        { value: 'stable_growth', label: '📈 Stable growth (5-8% annually)', complexityImpact: 0.3 },
-        { value: 'rapid_growth', label: '🚀 Rapid growth (15%+ annually)', complexityImpact: 0.8 },
-        { value: 'uncertain_plateau', label: '📊 Uncertain/plateau phase', complexityImpact: 1.5 },
-        { value: 'high_risk', label: '⚡ High risk/startup environment', complexityImpact: 2.2 }
-      ]
-    },
-    {
-      id: 'investment_behavior',
-      phase: 'personal_investment',
-      title: "How you actually handle money & risk",
-      subtitle: "Your behavioral gaps could cost your family ₹67L over 25 years",
-      type: 'single_choice',
-      options: [
-        { value: 'panic_sell', label: '😰 Panic and sell during crashes', complexityImpact: 2.5 },
-        { value: 'worry_hold', label: '😟 Worry but try to hold steady', complexityImpact: 1.2 },
-        { value: 'buying_opportunity', label: '😎 See crashes as buying opportunities', complexityImpact: -0.5 },
-        { value: 'ignore_balance', label: '🙈 Don\'t check balances during volatility', complexityImpact: 0.8 }
-      ]
-    },
-
-    // Phase 3: Complexity Revelation (Q16-18)
-    {
-      id: 'complexity_revelation',
-      phase: 'complexity_revelation',
-      title: "Your Wealth Web: 247 Interconnected Variables Revealed",
-      subtitle: "Based on your answers, you have multiple major financial decisions coming",
-      type: 'complexity_reveal',
-      condition: (data: CalculatorData) => data.complexityAnalysis.complexityScore > 7.0,
-      complexityThreshold: 8.0
-    },
-    {
-      id: 'stress_test_scenario',
-      phase: 'complexity_revelation',
-      title: "STRESS TEST: The 2027 Perfect Storm",
-      subtitle: "How would your current plan handle this reality?",
-      type: 'single_choice',
-      condition: (data: CalculatorData) => data.complexityAnalysis.complexityScore > 8.0,
-      options: [
-        { value: 'emergency_fund', label: 'Use emergency fund for everything', description: 'Fund depleted in 11 months, Timeline: -8.2 years' },
-        { value: 'liquidate_investments', label: 'Liquidate investments at loss', description: '₹52L permanent loss, Timeline: -6.8 years' },
-        { value: 'delay_education', label: 'Delay children\'s college', description: 'Emotional stress + opportunity cost, Timeline: -4.1 years' },
-        { value: 'coordinate_family', label: 'Coordinate with siblings + education loan', description: 'Requires family skills, Timeline: -1.8 years' }
-      ]
-    },
-
-    // Phase 4: Email Capture
-    {
-      id: 'email_capture',
-      phase: 'email_capture',
-      title: "Get your personalized family protection strategy",
-      subtitleFn: (data) => `Your situation (complexity score ${data.complexityAnalysis.complexityScore.toFixed(1)}/10) requires ongoing professional coordination`,
-      type: 'text_input'
-    }
-  ];
-
-  const currentQuestion = questionFlow[currentQuestionIndex];
-  const progress = ((currentQuestionIndex + 1) / questionFlow.length) * 100;
-
-  // Helper function for complexity scoring
-  const updateComplexityScore = (questionId: string, value: string, impact: number) => {
-    setData(prev => {
-      // Get previous selection for this question
-      const prevSelection = previousSelections[questionId];
-      
-      // Calculate the new score by subtracting previous impact (if any) and adding new impact
-      let newScore = prev.complexityAnalysis.complexityScore;
-      if (prevSelection && prevSelection.value !== value) {
-        newScore -= prevSelection.impact;
       }
-      newScore = Math.min(10, newScore + impact);
-      
-      // Update previous selections tracker
-      setPreviousSelections(prev => ({
-        ...prev,
-        [questionId]: { value, impact }
-      }));
-      
-      return {
-        ...prev,
-        complexityAnalysis: {
-          ...prev.complexityAnalysis,
-          complexityScore: newScore
-        }
-      };
-    });
+    }));
   };
 
-  // Helper function for adding insights
-  const addInsight = (insight: string) => {
-    setInsights(prev => prev.includes(insight) ? prev : [...prev, insight]);
-  };
-
-  // Calculate wealth percentile helper
-  const calculateWealthPercentile = (netWorth: number, age: number): number => {
-    const ageAdjustedWealth = netWorth / (age / 35);
-    if (ageAdjustedWealth > 5000000) return 5;
-    if (ageAdjustedWealth > 2500000) return 10;
-    if (ageAdjustedWealth > 1000000) return 25;
-    if (ageAdjustedWealth > 500000) return 50;
-    return 75;
-  };
-
-  // Smart defaults function
-  const applySmartDefaults = (questionId: string, data: CalculatorData) => {
-    if (questionId === 'net_worth_income') {
-      const cityMultiplier = data.coreIdentity.location.cityType === 'metro' ? 1.4 : 1.0;
-      const educationMultiplier = data.coreIdentity.education.level === 'masters' ? 1.2 : 1.0;
-      
-      return {
-        suggestedIncome: Math.floor(150000 * cityMultiplier * educationMultiplier),
-        suggestedNetWorth: Math.floor(500000 * cityMultiplier * educationMultiplier)
-      };
-    }
-    return {};
-  };
-
-  // Handle answer function
-  const handleAnswer = (questionId: string, value: any) => {
-    console.log(`Answering ${questionId} with value:`, value);
+  // Calculate wealth extinction
+  const handleCalculate = async () => {
+    setIsCalculating(true);
+    setCalculationError(null);
     
-    if (currentQuestion.type === 'single_choice') {
-      setSelectedOption(value);
-    }
-    
-    switch (questionId) {
-      case 'age_basic':
-        setData(prev => ({
-          ...prev,
-          coreIdentity: { ...prev.coreIdentity, age: parseInt(value) }
-        }));
-        break;
+    try {
+      // Detect user's location for more accurate results
+      try {
+        const location = await getOptimizedLocation();
+        console.log('📍 Detected location:', location);
         
-      case 'marital_status':
-        const maritalOption = currentQuestion.options?.find(opt => opt.value === value);
-        setData(prev => ({
-          ...prev,
-          coreIdentity: { ...prev.coreIdentity, maritalStatus: value as any }
-        }));
-        if (maritalOption?.complexityImpact !== undefined) {
-          updateComplexityScore(questionId, value, maritalOption.complexityImpact);
-        }
-        break;
-        
-      case 'employment_context':
-        const empOption = currentQuestion.options?.find(opt => opt.value === value);
-        setData(prev => ({
-          ...prev,
-          coreIdentity: { ...prev.coreIdentity, employment: { ...prev.coreIdentity.employment, status: value as any } }
-        }));
-        if (empOption?.complexityImpact !== undefined) {
-          updateComplexityScore(questionId, value, empOption.complexityImpact);
-        }
-        break;
-        
-      case 'children_count':
-        const childCount = parseInt(value.replace('+', ''));
-        const children = Array.from({ length: Math.min(childCount, 4) }, (_, i) => ({
-          name: `Child ${i + 1}`,
-          age: 12 - i * 3, // Spread ages
-          academicPerformance: 'above_average' as const,
-          interests: [],
-          educationAspirations: 'private_state' as const,
-          currentSchoolType: 'private_english' as const
-        }));
-        const childOption = currentQuestion.options?.find(opt => opt.value === value);
-        setData(prev => ({
-          ...prev,
-          childrenContext: { children }
-        }));
-        if (childOption?.complexityImpact !== undefined) {
-          updateComplexityScore(questionId, value, childOption.complexityImpact);
-        }
-        break;
-        
-      case 'net_worth_income':
-        if (typeof value === 'object') {
-          setData(prev => ({
-            ...prev,
-            financialFoundation: {
-              ...prev.financialFoundation,
-              currentNetWorth: value.netWorth,
-              annualIncome: value.income
+        // Update location in calculator data
+        setCalculatorData(prevData => ({
+          ...prevData,
+          coreIdentity: {
+            ...prevData.coreIdentity,
+            location: {
+              ...prevData.coreIdentity.location,
+              city: location.city,
+              state: location.state,
+              cityType: location.cityType
             }
-          }));
-        }
-        break;
-        
-      case 'email_capture':
-        setData(prev => ({ ...prev, email: value }));
-        break;
-        
-      default:
-        // Handle other question types
-        const option = currentQuestion.options?.find(opt => opt.value === value);
-        if (option?.complexityImpact !== undefined) {
-          updateComplexityScore(questionId, value, option.complexityImpact);
-        }
-        break;
-    }
-
-    // Add insight if available
-    if (currentQuestion.insight) {
-      const insight = currentQuestion.insight(data);
-      if (insight) addInsight(insight);
+          }
+        }));
+      } catch (locationError) {
+        console.warn('⚠️ Could not detect location:', locationError);
+        // Continue with existing location data
+      }
+      
+      // Prepare basic inputs for tiered calculation
+      const basicInputs: BasicCalculationInputs = {
+        age: calculatorData.coreIdentity.age,
+        netWorth: calculatorData.financialFoundation.currentNetWorth,
+        annualIncome: calculatorData.financialFoundation.annualIncome,
+        children: calculatorData.childrenContext.children.length,
+        riskTolerance: calculatorData.behavioralProfile.riskTolerance as any,
+        location: calculatorData.coreIdentity.location.cityType as any,
+        maritalStatus: calculatorData.coreIdentity.maritalStatus as any,
+        parentCare: calculatorData.familyCareContext.parents.length > 0
+      };
+      
+      console.log('🔄 Using tiered calculation approach');
+      console.log('👤 User authenticated:', !!user);
+      
+      // For all users, first get immediate basic results
+      const basicResults = await performBasicCalculation(basicInputs);
+      
+      // If user is authenticated, queue comprehensive calculation in background
+      if (user) {
+        console.log('🔄 User is authenticated, queueing comprehensive calculation');
+        // In a real implementation, we would queue a comprehensive calculation here
+        // For now, we'll just use the basic results
+      }
+      
+      // Complete the calculation flow with basic results
+      onComplete({
+        inputs: calculatorData,
+        results: basicResults,
+        calculationId: basicResults.calculationId,
+        isBasic: true
+      });
+    } catch (error) {
+      console.error('Calculation error:', error);
+      // Set error state to display to user
+      setCalculationError(error instanceof Error ? error.message : 'An error occurred during calculation');
+      // Don't call onComplete if there's an error
+    } finally {
+      setIsCalculating(false);
     }
   };
 
-  // Navigation functions
-  const handleNext = () => {
-    if (currentQuestionIndex < questionFlow.length - 1) {
-      let nextIndex = currentQuestionIndex + 1;
-      
-      // Find next valid question based on conditions
-      while (nextIndex < questionFlow.length) {
-        const nextQuestion = questionFlow[nextIndex];
-        if (!nextQuestion.condition || nextQuestion.condition(data)) {
-          break;
-        }
-        nextIndex++;
-      }
-      
-      setCurrentQuestionIndex(nextIndex);
+  // Go to next step
+  const handleNextStep = () => {
+    if (currentStep < 5) {
+      setCurrentStep(currentStep + 1);
     } else {
-      startCalculation();
+      handleCalculate();
     }
   };
 
-  const handlePrevious = () => {
-    if (currentQuestionIndex > 0) {
-      let prevIndex = currentQuestionIndex - 1;
-      
-      // Find previous valid question
-      while (prevIndex >= 0) {
-        const prevQuestion = questionFlow[prevIndex];
-        if (!prevQuestion.condition || prevQuestion.condition(data)) {
-          break;
-        }
-        prevIndex--;
-      }
-      
-      setCurrentQuestionIndex(Math.max(0, prevIndex));
+  // Go to previous step
+  const handlePrevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
     } else {
       onBack();
     }
   };
 
-  // Client-side calculation fallback
-  const calculateWealthExtinctionClientSide = (calculatorData: CalculatorData) => {
-    console.log('🔮 Starting client-side wealth extinction calculation');
-    
-    const { coreIdentity, financialFoundation, complexityAnalysis } = calculatorData;
-    
-    // Base calculation
-    let currentWealth = financialFoundation.currentNetWorth;
-    let currentAge = coreIdentity.age;
-    let extinctionYear = 2025;
-    
-    // Simple projection over 75 years
-    for (let year = 0; year < 75; year++) {
-      const currentYear = 2025 + year;
-      currentAge = coreIdentity.age + year;
-      
-      // Income progression (simplified)
-      const baseIncome = financialFoundation.annualIncome;
-      const incomeGrowth = 0.03; // 3% annual growth
-      const yearlyIncome = baseIncome * Math.pow(1 + incomeGrowth, year);
-      
-      // Expense progression (simplified)
-      const baseExpenses = yearlyIncome * 0.7; // 70% of income
-      const expenseGrowth = 0.04; // 4% annual growth (higher than income)
-      const yearlyExpenses = baseExpenses * Math.pow(1 + expenseGrowth, year);
-      
-      // Investment returns (simplified)
-      const investmentReturn = 0.08; // 8% annual return
-      const investmentReturns = currentWealth * investmentReturn;
-      
-      // Lifecycle events impact
-      let lifecycleImpact = 0;
-      
-      // Children education costs
-      if (calculatorData.childrenContext?.children?.length > 0) {
-        const childrenCount = calculatorData.childrenContext.children.length;
-        if (currentAge >= 35 && currentAge <= 55) {
-          lifecycleImpact -= 500000 * childrenCount; // Education costs
-        }
-      }
-      
-      // Parent care costs
-      if (calculatorData.familyCareContext?.parents?.length > 0) {
-        if (currentAge >= 45 && currentAge <= 65) {
-          lifecycleImpact -= 300000; // Parent care costs
-        }
-      }
-      
-      // Update wealth
-      const netCashFlow = yearlyIncome - yearlyExpenses + investmentReturns + lifecycleImpact;
-      currentWealth = Math.max(0, currentWealth + netCashFlow);
-      
-      // Check for extinction
-      if (currentWealth <= 0) {
-        extinctionYear = currentYear;
-        break;
-      }
-    }
-    
-    // Generate results
-    const yearsRemaining = extinctionYear - 2025;
-    
-    return {
-      extinctionYear,
-      yearsRemaining,
-      currentWealth: financialFoundation.currentNetWorth,
-      childrenInheritance: Math.max(0, currentWealth * 0.3),
-      grandchildrenInheritance: Math.max(0, currentWealth * 0.1),
-      projections: [
-        {
-          year: 2025,
-          age: coreIdentity.age,
-          wealth: financialFoundation.currentNetWorth,
-          income: financialFoundation.annualIncome,
-          expenses: financialFoundation.annualIncome * 0.7,
-          netCashFlow: financialFoundation.annualIncome * 0.3,
-          majorEvents: [],
-          confidenceLevel: 0.9
-        }
-      ],
-      topWealthDestroyers: [
-        {
-          factor: 'Expense Growth',
-          impact: 0.04,
-          description: 'Expenses growing faster than income'
-        },
-        {
-          factor: 'Lifecycle Events',
-          impact: 0.02,
-          description: 'Children education and parent care costs'
-        }
-      ],
-      familyImpact: {
-        today: {
-          netWorth: financialFoundation.currentNetWorth,
-          status: 'Building wealth actively'
-        },
-        inheritance: {
-          year: 2025 + (85 - coreIdentity.age),
-          children: calculatorData.childrenContext?.children?.map((child: any) => ({
-            name: child.name,
-            inheritance: Math.max(0, currentWealth * 0.3 / (calculatorData.childrenContext.children.length || 1))
-          })) || []
-        },
-        grandchildren: {
-          year: 2025 + (85 - coreIdentity.age) + 30,
-          inheritance: Math.max(0, currentWealth * 0.1),
-          collegeShortfall: Math.max(0, 400000 - currentWealth * 0.1)
-        }
-      },
-      protectedScenario: {
-        extinctionYear: extinctionYear + 5,
-        additionalYears: 5,
-        grandchildrenInheritance: Math.max(0, currentWealth * 0.15),
-        improvements: [
-          'Systematic expense management',
-          'Optimized investment allocation',
-          'Family coordination planning'
-        ]
-      },
-      complexityAnalysis: {
-        score: complexityAnalysis.complexityScore,
-        primaryComplexityDrivers: [
-          'Multiple children with different timelines',
-          'Aging parents requiring care',
-          'Complex family coordination needs'
-        ],
-        coordinationOpportunities: [
-          'Unified family financial planning',
-          'Shared care responsibilities',
-          'Coordinated investment strategies'
-        ],
-        optimizationPotential: Math.min(10, complexityAnalysis.complexityScore * 1.5)
-      },
-      scenarioAnalysis: {
-        bestCase: { extinctionYear: extinctionYear + 10, probability: 0.2 },
-        mostLikely: { extinctionYear: extinctionYear, probability: 0.6 },
-        worstCase: { extinctionYear: extinctionYear - 5, probability: 0.2 }
-      }
-    };
-  };
-
-  const startCalculation = async () => {
-    setIsLoading(true);
-    setError(null);
-    
-    // Ensure all required fields are present and properly structured
-    const calculationPayload = {
-      coreIdentity: {
-        age: data.coreIdentity.age,
-        gender: data.coreIdentity.gender,
-        maritalStatus: data.coreIdentity.maritalStatus,
-        location: {
-          state: data.coreIdentity.location.state || 'Maharashtra',
-          city: data.coreIdentity.location.city || 'Mumbai',
-          zipCode: data.coreIdentity.location.zipCode || '400001',
-          cityType: data.coreIdentity.location.cityType
-        },
-        education: {
-          level: data.coreIdentity.education.level,
-          institution: data.coreIdentity.education.institution
-        },
-        employment: {
-          status: data.coreIdentity.employment.status,
-          industry: data.coreIdentity.employment.industry,
-          roleLevel: data.coreIdentity.employment.roleLevel
-        },
-        financialSophistication: data.coreIdentity.financialSophistication
-      },
-      financialFoundation: {
-        currentNetWorth: data.financialFoundation.currentNetWorth,
-        annualIncome: data.financialFoundation.annualIncome,
-        primaryIncomeSource: data.financialFoundation.primaryIncomeSource,
-        investmentAllocation: data.financialFoundation.investmentAllocation
-      },
-      childrenContext: {
-        children: data.childrenContext.children.map(child => ({
-          name: child.name,
-          age: child.age,
-          academicPerformance: child.academicPerformance,
-          interests: child.interests || [],
-          educationAspirations: child.educationAspirations,
-          currentSchoolType: child.currentSchoolType
-        }))
-      },
-      familyCareContext: {
-        parents: data.familyCareContext.parents.map(parent => ({
-          name: parent.name,
-          age: parent.age,
-          healthStatus: parent.healthStatus,
-          financialIndependence: parent.financialIndependence,
-          currentMonthlyCost: parent.currentMonthlyCost,
-          livingArrangement: parent.livingArrangement,
-          location: parent.location
-        })),
-        spouseParents: data.familyCareContext.spouseParents,
-        siblings: data.familyCareContext.siblings,
-        familyCoordination: data.familyCareContext.familyCoordination
-      },
-      behavioralProfile: {
-        riskTolerance: data.behavioralProfile.riskTolerance,
-        marketCrashResponse: data.behavioralProfile.marketCrashResponse,
-        biggestFear: data.behavioralProfile.biggestFear,
-        planningApproach: data.behavioralProfile.planningApproach,
-        reviewFrequency: data.behavioralProfile.reviewFrequency
-      },
-      complexityAnalysis: {
-        complexityScore: data.complexityAnalysis.complexityScore,
-        majorDecisions: data.complexityAnalysis.majorDecisions,
-        interconnections: data.complexityAnalysis.interconnections,
-        sandwichGenerationOverload: data.complexityAnalysis.sandwichGenerationOverload
-      },
-      currentStep: data.currentStep,
-      email: data.email,
-      phoneNumber: data.phoneNumber,
-      timestamp: new Date().toISOString(),
-      calculationVersion: '2.0'
-    };
-    
-    console.log('🚀 Making API request with validated payload:', calculationPayload);
-    
-    try {
-      // Use the backend server URL
-      const apiUrl = import.meta.env.DEV ? 'http://localhost:3001/api/calculate-wealth' : '/api/calculate-wealth';
-      
-      console.log('🚀 Making API request to:', apiUrl);
-      console.log('📦 Request payload:', calculationPayload);
-      
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(calculationPayload)
-      });
-      
-      console.log('📡 Response status:', response.status);
-      console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      console.log('📊 API Response:', result);
-      console.log('📊 API Response structure:', {
-        success: result.success,
-        hasData: !!result.data,
-        dataKeys: result.data ? Object.keys(result.data) : [],
-        extinctionYear: result.data?.extinctionYear,
-        yearsRemaining: result.data?.yearsRemaining,
-        hasProjections: !!result.data?.projections,
-        projectionsCount: result.data?.projections?.length || 0,
-        hasTopWealthDestroyers: !!result.data?.topWealthDestroyers,
-        hasFamilyImpact: !!result.data?.familyImpact,
-        hasProtectedScenario: !!result.data?.protectedScenario,
-        hasComplexityAnalysis: !!result.data?.complexityAnalysis,
-        hasScenarioAnalysis: !!result.data?.scenarioAnalysis
-      });
-      
-      if (result.success && result.data) {
-        console.log('✅ Success! Passing data to results screen:', { inputs: calculationPayload, results: result.data });
-        console.log('📤 Calling onComplete with:', {
-          inputs: calculationPayload,
-          results: result.data,
-          resultsKeys: Object.keys(result.data)
-        });
-        setIsLoading(false);
-        onComplete({ inputs: calculationPayload, results: result.data });
-      } else {
-        console.error('❌ API returned error:', result);
-        setError(result.error || 'Calculation failed. Please try again.');
-        setIsLoading(false);
-      }
-    } catch (e) {
-      console.error('❌ Calculation error:', e);
-      console.log('🔄 Falling back to client-side calculation...');
-      
-      // Fallback to client-side calculation
-      try {
-        const clientSideResults = calculateWealthExtinctionClientSide(calculationPayload);
-        console.log('✅ Client-side calculation successful:', clientSideResults);
-        setIsLoading(false);
-        onComplete({ inputs: calculationPayload, results: clientSideResults });
-      } catch (fallbackError) {
-        console.error('❌ Client-side calculation also failed:', fallbackError);
-        setError('Calculation failed. Please try again.');
-        setIsLoading(false);
-      }
-    }
-  };
-
-  // Loading state
-  if (isLoading) {
+  // Render error state if calculation failed
+  if (calculationError) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center px-6">
+      <div className="min-h-screen bg-white p-6 flex flex-col items-center justify-center">
         <div className="max-w-md mx-auto text-center">
-          <div className="mb-8">
-            <div className="w-32 h-32 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-2xl">
-              <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-            </div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              🔮 Analyzing Your Family's Future
-            </h2>
-            <p className="text-lg text-gray-600 mb-6">
-              Processing complexity score {data.complexityAnalysis.complexityScore.toFixed(1)}/10 across 247 variables
-            </p>
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertTriangle className="w-8 h-8 text-red-500" />
           </div>
-
-          <div className="w-full bg-gray-300 rounded-full h-4 mb-6 shadow-inner">
-            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 h-4 rounded-full transition-all duration-1000 w-4/5 shadow-sm"></div>
-          </div>
-
-          <div className="space-y-4 text-gray-700">
-            <p className="flex items-center justify-center gap-2">
-              <Brain className="w-5 h-5 text-purple-600" />
-              Calculating 75-year wealth projection...
-            </p>
-            <p className="flex items-center justify-center gap-2">
-              <Users className="w-5 h-5 text-indigo-600" />
-              Modeling family coordination scenarios...
-            </p>
-            <p className="flex items-center justify-center gap-2">
-              <TrendingUp className="w-5 h-5 text-green-600" />
-              Identifying optimization opportunities...
-            </p>
-          </div>
-
-          <div className="mt-8 p-4 bg-blue-50 rounded-2xl border border-blue-200">
-            <p className="text-blue-800 text-sm font-medium">
-              💡 Families with your complexity score who use systematic planning extend their wealth timeline by an average of {Math.floor(data.complexityAnalysis.complexityScore * 1.2)} years
-            </p>
-          </div>
-
-          {error && (
-            <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700">
-              <p>{error}</p>
-              <button onClick={startCalculation} className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg">Retry</button>
-            </div>
-          )}
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Calculation Error</h1>
+          <p className="text-gray-600 mb-6">{calculationError}</p>
+          <button
+            onClick={() => {
+              setCalculationError(null);
+              handleCalculate();
+            }}
+            className="bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold py-3 px-6 rounded-xl"
+          >
+            Try Again
+          </button>
+          <button
+            onClick={onBack}
+            className="block w-full mt-4 text-gray-600 hover:text-gray-800"
+          >
+            Go Back
+          </button>
         </div>
       </div>
     );
   }
 
-  // Question rendering function
-  const renderQuestion = () => {
-    switch (currentQuestion.type) {
-      case 'slider':
-        return (
-          <div className="space-y-6">
-            <div>
-              <input
-                type="range"
-                min={currentQuestion.sliderConfig?.min || 25}
-                max={currentQuestion.sliderConfig?.max || 75}
-                step={currentQuestion.sliderConfig?.step || 1}
-                value={currentQuestion.id === 'age_basic' ? data.coreIdentity.age : 750000}
-                onChange={(e) => handleAnswer(currentQuestion.id, e.target.value)}
-                className={
-                  currentQuestion.id === 'age_basic'
-                    ? 'w-full age-slider-modern rounded-lg appearance-none cursor-pointer'
-                    : 'w-full h-3 custom-slider rounded-lg appearance-none cursor-pointer'
-                }
-              />
-              <div className="flex justify-between text-sm text-gray-500 mt-2">
-                <span>{currentQuestion.sliderConfig?.min || 25}</span>
-                <span className="font-bold text-purple-600 text-xl">
-                  {currentQuestion.sliderConfig?.formatter ?
-                    currentQuestion.sliderConfig.formatter(currentQuestion.id === 'age_basic' ? data.coreIdentity.age : 750000) :
-                    `${currentQuestion.id === 'age_basic' ? data.coreIdentity.age : 750000} ${currentQuestion.sliderConfig?.unit || ''}`
-                  }
-                </span>
-                <span>{currentQuestion.sliderConfig?.max || 75}</span>
+  // Render loading state during calculation
+  if (isCalculating) {
+    return (
+      <div className="min-h-screen bg-white p-6">
+        <div className="max-w-md mx-auto">
+          <h1 className="text-2xl font-bold text-center mb-6">Wealth Extinction Calculator</h1>
+          
+          <div className="text-center py-12">
+            <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-lg text-gray-700">Calculating your family's wealth timeline...</p>
+            <p className="text-sm text-gray-500 mt-2">This may take a few moments</p>
+            <div className="mt-8 space-y-4 text-left">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                  <Calculator className="w-4 h-4 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Running Monte Carlo simulations</p>
+                  <p className="text-xs text-gray-500">Analyzing multiple scenarios</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                  <TrendingUp className="w-4 h-4 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Projecting financial trajectory</p>
+                  <p className="text-xs text-gray-500">Modeling long-term wealth timeline</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                  <Users className="w-4 h-4 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Analyzing family impact</p>
+                  <p className="text-xs text-gray-500">Calculating generational wealth transfer</p>
+                </div>
               </div>
             </div>
           </div>
-        );
+        </div>
+      </div>
+    );
+  }
 
-      case 'dual_slider':
+  // Render the appropriate step
+  const renderStep = () => {
+    switch (currentStep) {
+      case 1:
         return (
           <div className="space-y-8">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Annual Household Income</label>
-              <input
-                type="range"
-                min="500000"
-                max="10000000"
-                step="50000"
-                value={data.financialFoundation.annualIncome}
-                onChange={(e) => handleAnswer(currentQuestion.id, { 
-                  income: parseInt(e.target.value), 
-                  netWorth: data.financialFoundation.currentNetWorth 
-                })}
-                className="w-full h-3 custom-slider rounded-lg appearance-none cursor-pointer"
-              />
-              <div className="flex justify-between text-sm text-gray-500 mt-2">
-                <span>₹5L</span>
-                <span className="font-bold text-blue-600 text-lg">
-                  ₹{(data.financialFoundation.annualIncome/100000).toFixed(1)}L annually
-                </span>
-                <span>₹1Cr+</span>
-              </div>
-            </div>
+            <h2 className="text-xl font-bold text-gray-900">Tell us about yourself</h2>
             
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Current Net Worth</label>
-              <input
-                type="range"
-                min="0"
-                max="50000000"
-                step="50000"
-                value={data.financialFoundation.currentNetWorth}
-                onChange={(e) => handleAnswer(currentQuestion.id, { 
-                  netWorth: parseInt(e.target.value), 
-                  income: data.financialFoundation.annualIncome 
-                })}
-                className="w-full h-3 custom-slider rounded-lg appearance-none cursor-pointer"
-              />
-              <div className="flex justify-between text-sm text-gray-500 mt-2">
-                <span>₹0</span>
-                <span className="font-bold text-green-600 text-lg">
-                  ₹{(data.financialFoundation.currentNetWorth/100000).toFixed(1)}L net worth
-                </span>
-                <span>₹5Cr+</span>
+            <div className="space-y-6">
+              <div>
+                <label className="block text-gray-700 font-medium mb-2">Your age</label>
+                <AgeSlider 
+                  value={calculatorData.coreIdentity.age}
+                  min={18}
+                  max={90}
+                  onChange={(value) => handleInputChange('coreIdentity', 'age', value)}
+                />
               </div>
-            </div>
-          </div>
-        );
-
-      case 'single_choice':
-        return (
-          <div className="space-y-4">
-            {currentQuestion.options?.map((option) => {
-              const isSelected = selectedOption === option.value ||
-                // fallback to data for persisted selection
-                (currentQuestion.id === 'marital_status' && data.coreIdentity.maritalStatus === option.value) ||
-                (currentQuestion.id === 'employment_context' && data.coreIdentity.employment.status === option.value) ||
-                (currentQuestion.id === 'children_count' && data.childrenContext.children.length === parseInt(option.value.replace('+', ''))) ||
-                (currentQuestion.id === 'education_sophistication' && data.coreIdentity.education.level === option.value) ||
-                (currentQuestion.id === 'location_context' && data.coreIdentity.location.cityType === option.value);
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => handleAnswer(currentQuestion.id, option.value)}
-                  className={`w-full p-6 border-2 rounded-2xl text-left group transition-all
-                    ${isSelected
-                      ? 'bg-[#7847f0] border-[#7847f0] text-white shadow-lg'
-                      : 'bg-white border-gray-200 text-gray-900 hover:bg-[#ede9fe] hover:border-[#7847f0]'}
-                    focus:outline-none focus:ring-2 focus:ring-[#7847f0] focus:border-[#7847f0]`}
-                  style={{ cursor: 'pointer' }}
+              
+              <div>
+                <label className="block text-gray-700 font-medium mb-2">Marital status</label>
+                <div className="grid grid-cols-2 gap-4">
+                  {['single', 'married', 'divorced', 'widowed'].map(status => (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => handleInputChange('coreIdentity', 'maritalStatus', status)}
+                      className={`p-3 rounded-xl border-2 transition-colors ${
+                        calculatorData.coreIdentity.maritalStatus === status
+                          ? 'border-purple-600 bg-purple-50 text-purple-700'
+                          : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                      }`}
+                    >
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-gray-700 font-medium mb-2">Employment status</label>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { value: 'corporate', label: 'Corporate' },
+                    { value: 'business_owner', label: 'Business Owner' },
+                    { value: 'self_employed', label: 'Self-employed' }
+                  ].map(option => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => handleNestedInputChange('coreIdentity', 'employment', 'status', option.value)}
+                      className={`p-3 rounded-xl border-2 transition-colors ${
+                        calculatorData.coreIdentity.employment.status === option.value
+                          ? 'border-purple-600 bg-purple-50 text-purple-700'
+                          : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-gray-700 font-medium mb-2">Industry</label>
+                <select
+                  value={calculatorData.coreIdentity.employment.industry}
+                  onChange={(e) => handleNestedInputChange('coreIdentity', 'employment', 'industry', e.target.value)}
+                  className="w-full p-3 bg-gray-100 border-0 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3">
-                      {option.emoji && (
-                        <span className="text-2xl">{option.emoji}</span>
-                      )}
-                      <div>
-                        <h3 className={`font-semibold group-hover:text-[#7847f0] ${isSelected ? 'text-white' : 'text-gray-900'}`}>{option.label}</h3>
-                        {option.description && (
-                          <p className={`text-sm mt-1 ${isSelected ? 'text-indigo-100' : 'text-gray-600'}`}>{option.description}</p>
-                        )}
-                      </div>
-                    </div>
-                    {option.complexityImpact && option.complexityImpact > 0 && (
-                      <div className={`ml-4 flex items-center gap-1 ${isSelected ? 'text-yellow-200' : 'text-orange-600'}`}>
-                        <AlertTriangle className="w-4 h-4" />
-                        <span className="text-xs font-medium">+{option.complexityImpact}</span>
-                      </div>
-                    )}
+                  <option value="">Select Industry</option>
+                  <option value="technology">Technology</option>
+                  <option value="healthcare">Healthcare</option>
+                  <option value="finance">Finance</option>
+                  <option value="education">Education</option>
+                  <option value="manufacturing">Manufacturing</option>
+                  <option value="retail">Retail</option>
+                  <option value="government">Government</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-gray-700 font-medium mb-2">Role level</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { value: 'junior', label: 'Junior' },
+                    { value: 'mid', label: 'Mid-level' },
+                    { value: 'senior', label: 'Senior' },
+                    { value: 'leadership', label: 'Leadership' }
+                  ].map(option => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => handleNestedInputChange('coreIdentity', 'employment', 'roleLevel', option.value)}
+                      className={`p-3 rounded-xl border-2 transition-colors ${
+                        calculatorData.coreIdentity.employment.roleLevel === option.value
+                          ? 'border-purple-600 bg-purple-50 text-purple-700'
+                          : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-gray-700 font-medium mb-2">Location</label>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">City</label>
+                    <input
+                      type="text"
+                      value={calculatorData.coreIdentity.location.city}
+                      onChange={(e) => handleNestedInputChange('coreIdentity', 'location', 'city', e.target.value)}
+                      placeholder="Enter your city"
+                      className="w-full p-3 bg-gray-100 border-0 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
                   </div>
-                </button>
-              );
-            })}
-          </div>
-        );
-
-      case 'complexity_reveal':
-        return (
-          <div className="space-y-6">
-            <div className="bg-gradient-to-r from-orange-50 to-red-50 border-2 border-orange-200 rounded-2xl p-6">
-              <div className="flex items-start gap-4">
-                <AlertTriangle className="w-8 h-8 text-orange-600 flex-shrink-0 mt-1" />
-                <div>
-                  <h3 className="text-xl font-bold text-orange-900 mb-3">
-                    Complex Situation Detected (Score: {data.complexityAnalysis.complexityScore.toFixed(1)}/10)
-                  </h3>
-                  <p className="text-orange-800 leading-relaxed mb-4">
-                    Based on your answers, you have <strong>{Math.floor(data.complexityAnalysis.complexityScore * 3)} major financial decisions</strong> in the next 5 years:
-                  </p>
-                  <ul className="space-y-2 text-orange-800">
-                    {data.childrenContext.children.length > 0 && (
-                      <li>📅 Children's education path choices & funding (2027-2029)</li>
-                    )}
-                    {data.complexityAnalysis.complexityScore > 5 && (
-                      <li>📅 Parent care escalation planning (2025-2028)</li>
-                    )}
-                    <li>📅 Investment rebalancing for life stage (2026)</li>
-                    <li>📅 Estate planning updates required (2025, 2030)</li>
-                    {data.complexityAnalysis.complexityScore > 7 && (
-                      <li>📅 Family coordination optimization (ongoing)</li>
-                    )}
-                    {data.coreIdentity.maritalStatus === 'married' && (
-                      <li>📅 Spouse's parents care coordination (2026+)</li>
-                    )}
-                  </ul>
                   
-                  <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-white rounded-xl p-4 border border-orange-200">
-                      <h4 className="font-semibold text-orange-900 mb-2">💔 Current Path Risk</h4>
-                      <p className="text-sm text-orange-800">
-                        Each missed optimization reduces timeline by 2-5 years. 
-                        Families like yours lose average ₹{Math.floor(data.complexityAnalysis.complexityScore * 40)}L 
-                        due to poor coordination.
-                      </p>
-                    </div>
-                    <div className="bg-white rounded-xl p-4 border border-green-200">
-                      <h4 className="font-semibold text-green-900 mb-2">✅ Protected Path Potential</h4>
-                      <p className="text-sm text-green-800">
-                        With systematic coordination, extend timeline by 
-                        {Math.floor(data.complexityAnalysis.complexityScore * 1.5)} years and 
-                        save ₹{Math.floor(data.complexityAnalysis.complexityScore * 60)}L.
-                      </p>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">State</label>
+                    <input
+                      type="text"
+                      value={calculatorData.coreIdentity.location.state}
+                      onChange={(e) => handleNestedInputChange('coreIdentity', 'location', 'state', e.target.value)}
+                      placeholder="Enter your state"
+                      className="w-full p-3 bg-gray-100 border-0 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">City Type</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { value: 'metro', label: 'Metro City' },
+                        { value: 'tier2', label: 'Tier 2 City' },
+                        { value: 'tier3', label: 'Tier 3 City' },
+                        { value: 'rural', label: 'Rural Area' }
+                      ].map(option => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => handleNestedInputChange('coreIdentity', 'location', 'cityType', option.value)}
+                          className={`p-3 rounded-xl border-2 transition-colors ${
+                            calculatorData.coreIdentity.location.cityType === option.value
+                              ? 'border-purple-600 bg-purple-50 text-purple-700'
+                              : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -1131,357 +467,792 @@ const WealthCalculatorFlow: React.FC<{
             </div>
           </div>
         );
-
-      case 'family_builder':
-        // Interactive children input cards
+      
+      case 2:
         return (
-          <div className="space-y-6">
-            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
-              <h3 className="text-lg font-semibold text-blue-900 mb-4">
-                Your Children's Individual Paths
-              </h3>
-              {data.childrenContext.children.map((child, idx) => (
-                <div key={idx} className="bg-white rounded-xl p-4 mb-4 border border-blue-200 relative">
-                  <button
-                    className="absolute top-2 right-2 text-red-500"
-                    onClick={() => {
-                      setData(prev => ({
-                        ...prev,
-                        childrenContext: {
-                          ...prev.childrenContext,
-                          children: prev.childrenContext.children.filter((_, i) => i !== idx)
-                        }
-                      }));
-                    }}
-                    title="Remove child"
-                    type="button"
-                  >×</button>
-                  <div className="mb-2">
-                    <label className="block text-sm font-medium">Name</label>
-                    <input
-                      className="w-full px-3 py-2 rounded border"
-                      value={child.name}
-                      onChange={e => {
-                        const value = e.target.value;
-                        setData(prev => {
-                          const updated = [...prev.childrenContext.children];
-                          updated[idx].name = value;
-                          return {
-                            ...prev,
-                            childrenContext: { ...prev.childrenContext, children: updated }
-                          };
-                        });
-                      }}
-                      placeholder="Child's name"
-                    />
-                  </div>
-                  <div className="mb-2">
-                    <label className="block text-sm font-medium">Age</label>
-                    <input
-                      type="number"
-                      className="w-full px-3 py-2 rounded border"
-                      value={child.age}
-                      onChange={e => {
-                        const value = Number(e.target.value);
-                        setData(prev => {
-                          const updated = [...prev.childrenContext.children];
-                          updated[idx].age = value;
-                          return {
-                            ...prev,
-                            childrenContext: { ...prev.childrenContext, children: updated }
-                          };
-                        });
-                      }}
-                      min={0}
-                      max={30}
-                    />
-                  </div>
-                  <div className="mb-2">
-                    <label className="block text-sm font-medium">Academic Performance</label>
-                    <select
-                      className="w-full px-3 py-2 rounded border"
-                      value={child.academicPerformance}
-                      onChange={e => {
-                        const value = e.target.value as 'struggling' | 'average' | 'above_average' | 'exceptional';
-                        setData(prev => {
-                          const updated = [...prev.childrenContext.children];
-                          updated[idx].academicPerformance = value;
-                          return {
-                            ...prev,
-                            childrenContext: { ...prev.childrenContext, children: updated }
-                          };
-                        });
-                      }}
-                    >
-                      <option value="struggling">Struggling</option>
-                      <option value="average">Average</option>
-                      <option value="above_average">Above Average</option>
-                      <option value="exceptional">Exceptional</option>
-                    </select>
-                  </div>
-                  <div className="mb-2">
-                    <label className="block text-sm font-medium">Education Path</label>
-                    <select
-                      className="w-full px-3 py-2 rounded border"
-                      value={child.educationAspirations}
-                      onChange={e => {
-                        const value = e.target.value as 'public_state' | 'public_premium' | 'private_state' | 'private_premium' | 'international';
-                        setData(prev => {
-                          const updated = [...prev.childrenContext.children];
-                          updated[idx].educationAspirations = value;
-                          return {
-                            ...prev,
-                            childrenContext: { ...prev.childrenContext, children: updated }
-                          };
-                        });
-                      }}
-                    >
-                      <option value="public_state">Public State</option>
-                      <option value="public_premium">Public Premium</option>
-                      <option value="private_state">Private State</option>
-                      <option value="private_premium">Private Premium</option>
-                      <option value="international">International</option>
-                    </select>
-                  </div>
-                  <div className="mb-2">
-                    <label className="block text-sm font-medium">Current School Type</label>
-                    <select
-                      className="w-full px-3 py-2 rounded border"
-                      value={child.currentSchoolType}
-                      onChange={e => {
-                        const value = e.target.value as 'government' | 'private_vernacular' | 'private_english' | 'international';
-                        setData(prev => {
-                          const updated = [...prev.childrenContext.children];
-                          updated[idx].currentSchoolType = value;
-                          return {
-                            ...prev,
-                            childrenContext: { ...prev.childrenContext, children: updated }
-                          };
-                        });
-                      }}
-                    >
-                      <option value="government">Government</option>
-                      <option value="private_vernacular">Private Vernacular</option>
-                      <option value="private_english">Private English</option>
-                      <option value="international">International</option>
-                    </select>
-                  </div>
-                </div>
-              ))}
-              <button
-                className="mt-2 px-4 py-2 bg-purple-600 text-white rounded-lg"
-                onClick={() => {
-                  setData(prev => ({
-                    ...prev,
-                    childrenContext: {
-                      ...prev.childrenContext,
-                      children: [
-                        ...prev.childrenContext.children,
-                        {
-                          name: '',
-                          age: 0,
-                          academicPerformance: 'average',
-                          interests: [],
-                          educationAspirations: 'private_state',
-                          currentSchoolType: 'private_english'
-                        }
-                      ]
-                    }
-                  }));
-                }}
-                type="button"
-              >
-                + Add Child
-              </button>
-            </div>
-          </div>
-        );
-
-      case 'text_input':
-        return (
-          <div className="space-y-6">
-            <input
-              type="email"
-              value={data.email}
-              onChange={(e) => handleAnswer(currentQuestion.id, e.target.value)}
-              placeholder="Enter your email for instant access"
-              className="w-full px-6 py-4 bg-white border-2 border-gray-200 rounded-2xl text-gray-900 placeholder-gray-500 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all text-lg"
-            />
+          <div className="space-y-8">
+            <h2 className="text-xl font-bold text-gray-900">Your financial foundation</h2>
             
-            <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-2xl p-6">
-              <div className="flex items-start gap-3">
-                <Shield className="w-6 h-6 text-green-600 mt-0.5" />
-                <div>
-                  <h4 className="font-semibold text-green-900 mb-3">Your Personalized Protection Plan Includes:</h4>
-                  <ul className="text-green-700 space-y-2">
-                    <li className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                      Custom {Math.floor(data.complexityAnalysis.complexityScore * 5)}-step action plan for your family
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                      Family coordination templates and conversation scripts
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                      Investment optimization for your children's timelines
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                      Parent care cost mitigation strategies
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                      Crisis scenario preparation checklist
-                    </li>
-                  </ul>
+            <div className="space-y-6">
+              <div>
+                <label className="block text-gray-700 font-medium mb-2">Current net worth</label>
+                <div className="mb-2">
+                  <input
+                    type="range"
+                    min="100000"
+                    max="50000000"
+                    step="100000"
+                    value={calculatorData.financialFoundation.currentNetWorth}
+                    onChange={(e) => handleInputChange('financialFoundation', 'currentNetWorth', parseInt(e.target.value))}
+                    className="custom-slider w-full"
+                  />
+                </div>
+                <div className="text-center text-xl font-bold text-purple-600">
+                  {formatCurrency(calculatorData.financialFoundation.currentNetWorth, currencyInfo)}
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-gray-700 font-medium mb-2">Annual household income</label>
+                <div className="mb-2">
+                  <input
+                    type="range"
+                    min="300000"
+                    max="10000000"
+                    step="100000"
+                    value={calculatorData.financialFoundation.annualIncome}
+                    onChange={(e) => handleInputChange('financialFoundation', 'annualIncome', parseInt(e.target.value))}
+                    className="custom-slider w-full"
+                  />
+                </div>
+                <div className="text-center text-xl font-bold text-purple-600">
+                  {formatCurrency(calculatorData.financialFoundation.annualIncome, currencyInfo)}
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-gray-700 font-medium mb-2">Primary income source</label>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { value: 'salary', label: 'Salary' },
+                    { value: 'business', label: 'Business' },
+                    { value: 'mixed', label: 'Mixed' }
+                  ].map(option => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => handleInputChange('financialFoundation', 'primaryIncomeSource', option.value)}
+                      className={`p-3 rounded-xl border-2 transition-colors ${
+                        calculatorData.financialFoundation.primaryIncomeSource === option.value
+                          ? 'border-purple-600 bg-purple-50 text-purple-700'
+                          : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      
+      case 3:
+        return (
+          <div className="space-y-8">
+            <h2 className="text-xl font-bold text-gray-900">Your family structure</h2>
+            
+            <div className="space-y-8">
+              {/* Children Section */}
+              <div>
+                <label className="block text-gray-700 font-medium mb-4">Children</label>
+                <div className="bg-gray-50 rounded-xl p-4">
+                  {calculatorData.childrenContext.children.length > 0 ? (
+                    <div className="space-y-4">
+                      {calculatorData.childrenContext.children.map((child, index) => (
+                        <div key={index} className="bg-white p-4 rounded-lg space-y-4">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <input
+                                type="text"
+                                value={child.name}
+                                onChange={(e) => {
+                                  const newChildren = [...calculatorData.childrenContext.children];
+                                  newChildren[index] = { ...newChildren[index], name: e.target.value };
+                                  handleInputChange('childrenContext', 'children', newChildren);
+                                }}
+                                placeholder="Child's name"
+                                className="w-full p-2 bg-gray-100 border-0 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newChildren = [...calculatorData.childrenContext.children];
+                                newChildren.splice(index, 1);
+                                handleInputChange('childrenContext', 'children', newChildren);
+                              }}
+                              className="ml-2 text-red-500 hover:text-red-700 p-2"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm text-gray-600 mb-1">Age</label>
+                              <input
+                                type="number"
+                                min="0"
+                                max="25"
+                                value={child.age}
+                                onChange={(e) => {
+                                  const newChildren = [...calculatorData.childrenContext.children];
+                                  newChildren[index] = { ...newChildren[index], age: parseInt(e.target.value) };
+                                  handleInputChange('childrenContext', 'children', newChildren);
+                                }}
+                                className="w-full p-2 bg-gray-100 border-0 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm text-gray-600 mb-1">Academic Performance</label>
+                              <select
+                                value={child.academicPerformance}
+                                onChange={(e) => {
+                                  const newChildren = [...calculatorData.childrenContext.children];
+                                  newChildren[index] = { ...newChildren[index], academicPerformance: e.target.value as any };
+                                  handleInputChange('childrenContext', 'children', newChildren);
+                                }}
+                                className="w-full p-2 bg-gray-100 border-0 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              >
+                                <option value="struggling">Struggling</option>
+                                <option value="average">Average</option>
+                                <option value="above_average">Above Average</option>
+                                <option value="exceptional">Exceptional</option>
+                              </select>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm text-gray-600 mb-1">Education Aspirations</label>
+                              <select
+                                value={child.educationAspirations}
+                                onChange={(e) => {
+                                  const newChildren = [...calculatorData.childrenContext.children];
+                                  newChildren[index] = { ...newChildren[index], educationAspirations: e.target.value as any };
+                                  handleInputChange('childrenContext', 'children', newChildren);
+                                }}
+                                className="w-full p-2 bg-gray-100 border-0 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              >
+                                <option value="public_state">Public State College</option>
+                                <option value="public_premium">Public Premium College</option>
+                                <option value="private_state">Private State College</option>
+                                <option value="private_premium">Private Premium College</option>
+                                <option value="international">International University</option>
+                              </select>
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm text-gray-600 mb-1">Current School Type</label>
+                              <select
+                                value={child.currentSchoolType}
+                                onChange={(e) => {
+                                  const newChildren = [...calculatorData.childrenContext.children];
+                                  newChildren[index] = { ...newChildren[index], currentSchoolType: e.target.value as any };
+                                  handleInputChange('childrenContext', 'children', newChildren);
+                                }}
+                                className="w-full p-2 bg-gray-100 border-0 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              >
+                                <option value="government">Government School</option>
+                                <option value="private_vernacular">Private Vernacular</option>
+                                <option value="private_english">Private English</option>
+                                <option value="international">International School</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-center py-4">No children added yet</p>
+                  )}
                   
-                  <div className="mt-4 p-3 bg-white rounded-xl border border-green-200">
-                    <p className="text-sm text-green-800 font-medium">
-                      🎯 Value: Custom analysis worth ₹50,000 • 100% Confidential • No spam guarantee
-                    </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newChildren = [...calculatorData.childrenContext.children];
+                      newChildren.push({
+                        name: `Child ${newChildren.length + 1}`,
+                        age: 5,
+                        academicPerformance: 'average',
+                        educationAspirations: 'private_state',
+                        currentSchoolType: 'private_english'
+                      });
+                      handleInputChange('childrenContext', 'children', newChildren);
+                    }}
+                    className="w-full mt-4 py-3 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition-colors"
+                  >
+                    + Add Child
+                  </button>
+                </div>
+              </div>
+              
+              {/* Parents Section */}
+              <div>
+                <label className="block text-gray-700 font-medium mb-4">Parents requiring care</label>
+                <div className="bg-gray-50 rounded-xl p-4">
+                  {calculatorData.familyCareContext.parents.length > 0 ? (
+                    <div className="space-y-4">
+                      {calculatorData.familyCareContext.parents.map((parent, index) => (
+                        <div key={index} className="bg-white p-4 rounded-lg space-y-4">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <input
+                                type="text"
+                                value={parent.name}
+                                onChange={(e) => {
+                                  const newParents = [...calculatorData.familyCareContext.parents];
+                                  newParents[index] = { ...newParents[index], name: e.target.value };
+                                  handleInputChange('familyCareContext', 'parents', newParents);
+                                }}
+                                placeholder="Parent's name"
+                                className="w-full p-2 bg-gray-100 border-0 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newParents = [...calculatorData.familyCareContext.parents];
+                                newParents.splice(index, 1);
+                                handleInputChange('familyCareContext', 'parents', newParents);
+                              }}
+                              className="ml-2 text-red-500 hover:text-red-700 p-2"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm text-gray-600 mb-1">Age</label>
+                              <input
+                                type="number"
+                                min="50"
+                                max="100"
+                                value={parent.age}
+                                onChange={(e) => {
+                                  const newParents = [...calculatorData.familyCareContext.parents];
+                                  newParents[index] = { ...newParents[index], age: parseInt(e.target.value) };
+                                  handleInputChange('familyCareContext', 'parents', newParents);
+                                }}
+                                className="w-full p-2 bg-gray-100 border-0 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm text-gray-600 mb-1">Health Status</label>
+                              <select
+                                value={parent.healthStatus}
+                                onChange={(e) => {
+                                  const newParents = [...calculatorData.familyCareContext.parents];
+                                  newParents[index] = { ...newParents[index], healthStatus: e.target.value as any };
+                                  handleInputChange('familyCareContext', 'parents', newParents);
+                                }}
+                                className="w-full p-2 bg-gray-100 border-0 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              >
+                                <option value="excellent">Excellent</option>
+                                <option value="good">Good</option>
+                                <option value="fair">Fair</option>
+                                <option value="poor">Poor</option>
+                              </select>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm text-gray-600 mb-1">Financial Independence</label>
+                              <select
+                                value={parent.financialIndependence}
+                                onChange={(e) => {
+                                  const newParents = [...calculatorData.familyCareContext.parents];
+                                  newParents[index] = { ...newParents[index], financialIndependence: e.target.value as any };
+                                  handleInputChange('familyCareContext', 'parents', newParents);
+                                }}
+                                className="w-full p-2 bg-gray-100 border-0 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              >
+                                <option value="independent">Independent</option>
+                                <option value="occasional_support">Occasional Support</option>
+                                <option value="regular_support">Regular Support</option>
+                                <option value="full_dependency">Full Dependency</option>
+                              </select>
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm text-gray-600 mb-1">Living Arrangement</label>
+                              <select
+                                value={parent.livingArrangement}
+                                onChange={(e) => {
+                                  const newParents = [...calculatorData.familyCareContext.parents];
+                                  newParents[index] = { ...newParents[index], livingArrangement: e.target.value as any };
+                                  handleInputChange('familyCareContext', 'parents', newParents);
+                                }}
+                                className="w-full p-2 bg-gray-100 border-0 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              >
+                                <option value="independent">Independent</option>
+                                <option value="assisted">Assisted Living</option>
+                                <option value="with_family">Living with Family</option>
+                              </select>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm text-gray-600 mb-1">Location</label>
+                              <select
+                                value={parent.location}
+                                onChange={(e) => {
+                                  const newParents = [...calculatorData.familyCareContext.parents];
+                                  newParents[index] = { ...newParents[index], location: e.target.value as any };
+                                  handleInputChange('familyCareContext', 'parents', newParents);
+                                }}
+                                className="w-full p-2 bg-gray-100 border-0 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              >
+                                <option value="same_city">Same City</option>
+                                <option value="different_city">Different City</option>
+                                <option value="different_state">Different State</option>
+                              </select>
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm text-gray-600 mb-1">Monthly Care Cost (₹)</label>
+                              <input
+                                type="number"
+                                min="0"
+                                value={parent.currentMonthlyCost}
+                                onChange={(e) => {
+                                  const newParents = [...calculatorData.familyCareContext.parents];
+                                  newParents[index] = { ...newParents[index], currentMonthlyCost: parseInt(e.target.value) };
+                                  handleInputChange('familyCareContext', 'parents', newParents);
+                                }}
+                                className="w-full p-2 bg-gray-100 border-0 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-center py-4">No parents added yet</p>
+                  )}
+                  
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newParents = [...calculatorData.familyCareContext.parents];
+                      newParents.push({
+                        name: `Parent ${newParents.length + 1}`,
+                        age: 65,
+                        healthStatus: 'good',
+                        financialIndependence: 'independent',
+                        currentMonthlyCost: 0,
+                        livingArrangement: 'independent',
+                        location: 'same_city'
+                      });
+                      handleInputChange('familyCareContext', 'parents', newParents);
+                    }}
+                    className="w-full mt-4 py-3 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition-colors"
+                  >
+                    + Add Parent
+                  </button>
+                </div>
+              </div>
+              
+              {/* In-laws Section - Only show for married/widowed users */}
+              {(calculatorData.coreIdentity.maritalStatus === 'married' || calculatorData.coreIdentity.maritalStatus === 'widowed') && (
+                <div>
+                  <label className="block text-gray-700 font-medium mb-4">Spouse's Parents (In-laws)</label>
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    {calculatorData.familyCareContext.spouseParents.length > 0 ? (
+                      <div className="space-y-4">
+                        {calculatorData.familyCareContext.spouseParents.map((spouseParent, index) => (
+                          <div key={index} className="bg-white p-4 rounded-lg space-y-4">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <input
+                                  type="text"
+                                  value={spouseParent.name || ''}
+                                  onChange={(e) => {
+                                    const newSpouseParents = [...calculatorData.familyCareContext.spouseParents];
+                                    newSpouseParents[index] = { ...newSpouseParents[index], name: e.target.value };
+                                    handleInputChange('familyCareContext', 'spouseParents', newSpouseParents);
+                                  }}
+                                  placeholder="In-law's name"
+                                  className="w-full p-2 bg-gray-100 border-0 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newSpouseParents = [...calculatorData.familyCareContext.spouseParents];
+                                  newSpouseParents.splice(index, 1);
+                                  handleInputChange('familyCareContext', 'spouseParents', newSpouseParents);
+                                }}
+                                className="ml-2 text-red-500 hover:text-red-700 p-2"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm text-gray-600 mb-1">Age</label>
+                                <input
+                                  type="number"
+                                  min="50"
+                                  max="100"
+                                  value={spouseParent.age}
+                                  onChange={(e) => {
+                                    const newSpouseParents = [...calculatorData.familyCareContext.spouseParents];
+                                    newSpouseParents[index] = { ...newSpouseParents[index], age: parseInt(e.target.value) };
+                                    handleInputChange('familyCareContext', 'spouseParents', newSpouseParents);
+                                  }}
+                                  className="w-full p-2 bg-gray-100 border-0 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                />
+                              </div>
+                              
+                              <div>
+                                <label className="block text-sm text-gray-600 mb-1">Support Needed</label>
+                                <select
+                                  value={spouseParent.supportNeeded ? 'yes' : 'no'}
+                                  onChange={(e) => {
+                                    const newSpouseParents = [...calculatorData.familyCareContext.spouseParents];
+                                    newSpouseParents[index] = { ...newSpouseParents[index], supportNeeded: e.target.value === 'yes' };
+                                    handleInputChange('familyCareContext', 'spouseParents', newSpouseParents);
+                                  }}
+                                  className="w-full p-2 bg-gray-100 border-0 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                >
+                                  <option value="no">No Support Needed</option>
+                                  <option value="yes">Support Needed</option>
+                                </select>
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm text-gray-600 mb-1">Location</label>
+                              <input
+                                type="text"
+                                value={spouseParent.location}
+                                onChange={(e) => {
+                                  const newSpouseParents = [...calculatorData.familyCareContext.spouseParents];
+                                  newSpouseParents[index] = { ...newSpouseParents[index], location: e.target.value };
+                                  handleInputChange('familyCareContext', 'spouseParents', newSpouseParents);
+                                }}
+                                placeholder="City, State"
+                                className="w-full p-2 bg-gray-100 border-0 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 text-center py-4">No in-laws added yet</p>
+                    )}
+                    
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newSpouseParents = [...calculatorData.familyCareContext.spouseParents];
+                        newSpouseParents.push({
+                          name: `In-law ${newSpouseParents.length + 1}`,
+                          age: 65,
+                          supportNeeded: false,
+                          location: ''
+                        });
+                        handleInputChange('familyCareContext', 'spouseParents', newSpouseParents);
+                      }}
+                      className="w-full mt-4 py-3 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition-colors"
+                    >
+                      + Add In-law
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      
+      case 4:
+        return (
+          <div className="space-y-8">
+            <h2 className="text-xl font-bold text-gray-900">Your investment profile</h2>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-gray-700 font-medium mb-2">Risk tolerance</label>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { value: 'conservative', label: 'Conservative' },
+                    { value: 'moderate', label: 'Moderate' },
+                    { value: 'aggressive', label: 'Aggressive' }
+                  ].map(option => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => handleInputChange('behavioralProfile', 'riskTolerance', option.value)}
+                      className={`p-3 rounded-xl border-2 transition-colors ${
+                        calculatorData.behavioralProfile.riskTolerance === option.value
+                          ? 'border-purple-600 bg-purple-50 text-purple-700'
+                          : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-gray-700 font-medium mb-2">How do you respond to market crashes?</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { value: 'panic_sell', label: 'Panic and sell' },
+                    { value: 'worry_hold', label: 'Worry but hold' },
+                    { value: 'buying_opportunity', label: 'See buying opportunity' },
+                    { value: 'ignore_it', label: 'Ignore it' }
+                  ].map(option => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => handleInputChange('behavioralProfile', 'marketCrashResponse', option.value)}
+                      className={`p-3 rounded-xl border-2 transition-colors ${
+                        calculatorData.behavioralProfile.marketCrashResponse === option.value
+                          ? 'border-purple-600 bg-purple-50 text-purple-700'
+                          : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-gray-700 font-medium mb-2">Investment allocation</label>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between text-sm text-gray-600 mb-1">
+                      <span>Stocks: {Math.round(calculatorData.financialFoundation.investmentAllocation.stocks * 100)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={calculatorData.financialFoundation.investmentAllocation.stocks}
+                      onChange={(e) => {
+                        const newStocks = parseFloat(e.target.value);
+                        const remaining = 1 - newStocks;
+                        const newBonds = calculatorData.financialFoundation.investmentAllocation.bonds / 
+                          (calculatorData.financialFoundation.investmentAllocation.bonds + 
+                           calculatorData.financialFoundation.investmentAllocation.realEstate) * remaining;
+                        const newRealEstate = remaining - newBonds;
+                        
+                        setCalculatorData(prevData => ({
+                          ...prevData,
+                          financialFoundation: {
+                            ...prevData.financialFoundation,
+                            investmentAllocation: {
+                              stocks: newStocks,
+                              bonds: newBonds,
+                              realEstate: newRealEstate,
+                              alternatives: 0
+                            }
+                          }
+                        }));
+                      }}
+                      className="custom-slider w-full"
+                    />
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between text-sm text-gray-600 mb-1">
+                      <span>Bonds: {Math.round(calculatorData.financialFoundation.investmentAllocation.bonds * 100)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={calculatorData.financialFoundation.investmentAllocation.bonds}
+                      onChange={(e) => {
+                        const newBonds = parseFloat(e.target.value);
+                        const stocks = calculatorData.financialFoundation.investmentAllocation.stocks;
+                        const remaining = 1 - stocks - newBonds;
+                        
+                        setCalculatorData(prevData => ({
+                          ...prevData,
+                          financialFoundation: {
+                            ...prevData.financialFoundation,
+                            investmentAllocation: {
+                              stocks: stocks,
+                              bonds: newBonds,
+                              realEstate: Math.max(0, remaining),
+                              alternatives: 0
+                            }
+                          }
+                        }));
+                      }}
+                      className="custom-slider w-full"
+                    />
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between text-sm text-gray-600 mb-1">
+                      <span>Real Estate: {Math.round(calculatorData.financialFoundation.investmentAllocation.realEstate * 100)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={calculatorData.financialFoundation.investmentAllocation.realEstate}
+                      onChange={(e) => {
+                        const newRealEstate = parseFloat(e.target.value);
+                        const stocks = calculatorData.financialFoundation.investmentAllocation.stocks;
+                        const remaining = 1 - stocks - newRealEstate;
+                        
+                        setCalculatorData(prevData => ({
+                          ...prevData,
+                          financialFoundation: {
+                            ...prevData.financialFoundation,
+                            investmentAllocation: {
+                              stocks: stocks,
+                              bonds: Math.max(0, remaining),
+                              realEstate: newRealEstate,
+                              alternatives: 0
+                            }
+                          }
+                        }));
+                      }}
+                      className="custom-slider w-full"
+                    />
                   </div>
                 </div>
               </div>
             </div>
           </div>
         );
-
+      
+      case 5:
+        return (
+          <div className="space-y-8">
+            <h2 className="text-xl font-bold text-gray-900">Review & Calculate</h2>
+            
+            <div className="space-y-6">
+              <div className="bg-gray-50 rounded-xl p-4">
+                <h3 className="font-bold text-gray-900 mb-2">Personal Information</h3>
+                <p className="text-gray-700">Age: {calculatorData.coreIdentity.age}</p>
+                <p className="text-gray-700">Marital Status: {calculatorData.coreIdentity.maritalStatus}</p>
+                <p className="text-gray-700">
+                  Employment: {calculatorData.coreIdentity.employment.status} ({calculatorData.coreIdentity.employment.industry}, {calculatorData.coreIdentity.employment.roleLevel})
+                </p>
+                <p className="text-gray-700">
+                  Location: {calculatorData.coreIdentity.location.city}, {calculatorData.coreIdentity.location.state} ({calculatorData.coreIdentity.location.cityType.replace('tier2', 'Tier 2').replace('tier3', 'Tier 3')})
+                </p>
+              </div>
+              
+              <div className="bg-gray-50 rounded-xl p-4">
+                <h3 className="font-bold text-gray-900 mb-2">Financial Information</h3>
+                <p className="text-gray-700">Net Worth: {formatCurrency(calculatorData.financialFoundation.currentNetWorth, currencyInfo)}</p>
+                <p className="text-gray-700">Annual Income: {formatCurrency(calculatorData.financialFoundation.annualIncome, currencyInfo)}</p>
+                <p className="text-gray-700">Income Source: {calculatorData.financialFoundation.primaryIncomeSource}</p>
+              </div>
+              
+              <div className="bg-gray-50 rounded-xl p-4">
+                <h3 className="font-bold text-gray-900 mb-2">Family Structure</h3>
+                <p className="text-gray-700">Children: {calculatorData.childrenContext.children.length}</p>
+                {calculatorData.childrenContext.children.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {calculatorData.childrenContext.children.map((child, index) => (
+                      <p key={index} className="text-sm text-gray-600 ml-4">
+                        • {child.name} (Age: {child.age}, {child.academicPerformance.replace('_', ' ')}, {child.educationAspirations.replace('_', ' ')})
+                      </p>
+                    ))}
+                  </div>
+                )}
+                <p className="text-gray-700 mt-2">Parents Requiring Care: {calculatorData.familyCareContext.parents.length}</p>
+                {calculatorData.familyCareContext.parents.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {calculatorData.familyCareContext.parents.map((parent, index) => (
+                      <p key={index} className="text-sm text-gray-600 ml-4">
+                        • {parent.name} (Age: {parent.age}, {parent.healthStatus}, {parent.financialIndependence.replace('_', ' ')}, ₹{parent.currentMonthlyCost.toLocaleString()}/month)
+                      </p>
+                    ))}
+                  </div>
+                )}
+                {(calculatorData.coreIdentity.maritalStatus === 'married' || calculatorData.coreIdentity.maritalStatus === 'widowed') && (
+                  <>
+                    <p className="text-gray-700 mt-2">In-laws: {calculatorData.familyCareContext.spouseParents.length}</p>
+                    {calculatorData.familyCareContext.spouseParents.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {calculatorData.familyCareContext.spouseParents.map((spouseParent, index) => (
+                          <p key={index} className="text-sm text-gray-600 ml-4">
+                            • {spouseParent.name} (Age: {spouseParent.age}, {spouseParent.supportNeeded ? 'Support Needed' : 'Independent'})
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+              
+              <div className="bg-gray-50 rounded-xl p-4">
+                <h3 className="font-bold text-gray-900 mb-2">Investment Profile</h3>
+                <p className="text-gray-700">Risk Tolerance: {calculatorData.behavioralProfile.riskTolerance}</p>
+                <p className="text-gray-700">Market Crash Response: {calculatorData.behavioralProfile.marketCrashResponse.replace('_', ' ')}</p>
+                <p className="text-gray-700">
+                  Allocation: {Math.round(calculatorData.financialFoundation.investmentAllocation.stocks * 100)}% stocks, 
+                  {Math.round(calculatorData.financialFoundation.investmentAllocation.bonds * 100)}% bonds, 
+                  {Math.round(calculatorData.financialFoundation.investmentAllocation.realEstate * 100)}% real estate
+                </p>
+              </div>
+              
+              <div className="bg-purple-50 rounded-xl p-4 text-center">
+                <p className="text-purple-700 font-medium">
+                  Ready to calculate your family's wealth timeline?
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      
       default:
-        return <div>Question type not implemented</div>;
+        return null;
     }
   };
-
-  // Get phase color and icon
-  const getPhaseStyle = (phase: string) => {
-    switch (phase) {
-      case 'foundation':
-        return { color: 'blue', icon: '🏗️', name: 'Foundation Building' };
-      case 'personal_investment':
-        return { color: 'purple', icon: '❤️', name: 'Personal Investment' };
-      case 'complexity_revelation':
-        return { color: 'orange', icon: '🕸️', name: 'Complexity Revelation' };
-      case 'email_capture':
-        return { color: 'green', icon: '🛡️', name: 'Protection Strategy' };
-      default:
-        return { color: 'gray', icon: '📊', name: 'Assessment' };
-    }
-  };
-
-  const phaseStyle = getPhaseStyle(currentQuestion.phase);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-purple-50">
-      {/* Enhanced Header */}
-      <div className="px-6 py-6 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
-        <div className="flex items-center justify-between">
-          <button onClick={handlePrevious} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
-            <ArrowLeft className="w-6 h-6 text-gray-600" />
-          </button>
-          
-          <div className="text-center">
-            <p className="text-sm text-gray-600">
-              {phaseStyle.icon} {phaseStyle.name} • Step {currentQuestionIndex + 1} of {questionFlow.length}
-            </p>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs text-purple-600">Complexity Score:</span>
-              <div className="flex items-center gap-1">
-                {Array.from({ length: 10 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                      i < data.complexityAnalysis.complexityScore ? 'bg-purple-600' : 'bg-gray-200'
-                    }`}
-                  />
-                ))}
-                <span className="text-xs font-bold text-purple-600 ml-1">
-                  {data.complexityAnalysis.complexityScore.toFixed(1)}/10
-                </span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="w-10"></div>
-        </div>
+    <div className="min-h-screen bg-white p-6">
+      <div className="max-w-md mx-auto">
+        <h1 className="text-2xl font-bold text-center mb-6">Wealth Extinction Calculator</h1>
         
         {/* Progress Bar */}
-        <div className="w-full bg-gray-200 rounded-full h-3 mt-4">
-          <div
-            className="h-3 rounded-full transition-all duration-500 shadow-sm"
-            style={{
-              width: `${progress}%`,
-              background: 'linear-gradient(90deg, #7847f0 0%, #5f36c7 100%)'
-            }}
-          ></div>
+        <div className="mb-8">
+          <div className="flex justify-between text-sm text-gray-500 mb-2">
+            <span>Step {currentStep} of 5</span>
+            <span>{currentStep * 20}% Complete</span>
+          </div>
+          <div className="w-full h-2 bg-gray-200 rounded-full">
+            <div 
+              className="h-2 bg-gradient-to-r from-purple-600 to-purple-700 rounded-full transition-all duration-300"
+              style={{ width: `${currentStep * 20}%` }}
+            ></div>
+          </div>
         </div>
         
-        <div className="flex justify-between items-center mt-2">
-          <p className={`text-sm text-${phaseStyle.color}-600`}>{Math.round(progress)}% complete</p>
-          {data.complexityAnalysis.complexityScore > 5 && (
-            <p className="text-xs text-orange-600 flex items-center gap-1">
-              <AlertTriangle className="w-3 h-3" />
-              High complexity detected
-            </p>
-          )}
+        {/* Step Content */}
+        <div className="mb-8">
+          {renderStep()}
         </div>
-      </div>
-
-      {/* Content */}
-      <div className="px-6 py-8">
-        <div className="max-w-2xl mx-auto">
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-3">
-              {currentQuestion.title}
-            </h2>
-            {currentQuestion.subtitleFn ? currentQuestion.subtitleFn(data) : currentQuestion.subtitle}
-          </div>
-
-          {renderQuestion()}
-
-          {/* Recent Insights */}
-          {insights.length > 0 && (
-            <div className="mt-8 space-y-3">
-              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-                <div className="flex items-start gap-3">
-                  <Brain className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-blue-800 font-medium">{insights[insights.length - 1]}</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Continue Button */}
-      <div className="fixed bottom-0 left-0 right-0 p-6 bg-white/95 backdrop-blur-sm border-t border-gray-200">
-        <div className="max-w-2xl mx-auto">
+        
+        {/* Navigation Buttons */}
+        <div className="flex gap-4">
           <button
-            onClick={handleNext}
-            disabled={currentQuestion.id === 'email_capture' && !data.email}
-            className={`w-full bg-[#7847f0] text-white font-bold py-4 px-6 rounded-2xl text-lg transition-all duration-300 transform active:scale-95 shadow-lg flex items-center justify-center gap-3
-              hover:bg-[#5f36c7] focus:bg-[#5f36c7] disabled:opacity-50 disabled:cursor-not-allowed`}
+            onClick={handlePrevStep}
+            className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl transition-colors"
           >
-            {currentQuestionIndex === questionFlow.length - 1 ? (
-              <>
-                <Calculator className="w-5 h-5" />
-                <span>Calculate My Family's Timeline</span>
-                <Clock className="w-5 h-5 animate-pulse" />
-              </>
-            ) : (
-              <>
-                Continue Deep Dive
-                <ArrowRight className="w-5 h-5" />
-              </>
-            )}
+            {currentStep === 1 ? 'Back' : 'Previous'}
           </button>
           
-          {currentQuestion.id === 'email_capture' && (
-            <div className="mt-4 text-center">
-              <p className="text-sm text-gray-600">
-                ✨ Delivered in 2 minutes • Custom analysis worth ₹50,000 • Zero spam guarantee
-              </p>
-            </div>
-          )}
+          <button
+            onClick={handleNextStep}
+            className="flex-1 py-3 px-4 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+          >
+            {currentStep === 5 ? 'Calculate' : 'Next'}
+            {currentStep === 5 ? <Calculator className="w-5 h-5" /> : <ArrowRight className="w-5 h-5" />}
+          </button>
         </div>
       </div>
     </div>
@@ -1489,165 +1260,3 @@ const WealthCalculatorFlow: React.FC<{
 };
 
 export default WealthCalculatorFlow;
-
-// Add global style for custom slider
-// Use a regular <style> tag for global CSS
-if (typeof window !== 'undefined') {
-  const style = document.createElement('style');
-  style.innerHTML = `
-    .custom-slider {
-      background: #e5e7eb; /* muted light grey */
-      height: 0.75rem;
-      border-radius: 0.75rem;
-    }
-    .custom-slider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 1.5rem;
-      height: 1.5rem;
-      border-radius: 9999px;
-      background: #7847f0;
-      border: 3px solid #fff;
-      box-shadow: 0 2px 8px rgba(120,71,240,0.15);
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    .custom-slider:focus::-webkit-slider-thumb,
-    .custom-slider::-webkit-slider-thumb:hover {
-      transform: scale(1.1);
-      box-shadow: 0 6px 16px rgba(120, 71, 240, 0.5);
-    }
-    .custom-slider::-moz-range-thumb {
-      width: 1.5rem;
-      height: 1.5rem;
-      border-radius: 9999px;
-      background: #7847f0;
-      border: 3px solid #fff;
-      box-shadow: 0 2px 8px rgba(120, 71, 240, 0.3);
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    .custom-slider:focus::-moz-range-thumb,
-    .custom-slider::-moz-range-thumb:hover {
-      transform: scale(1.1);
-      box-shadow: 0 6px 16px rgba(120, 71, 240, 0.5);
-    }
-    .custom-slider::-ms-thumb {
-      width: 1.5rem;
-      height: 1.5rem;
-      border-radius: 9999px;
-      background: #7847f0;
-      border: 3px solid #fff;
-      box-shadow: 0 2px 8px rgba(87, 43, 201, 0.3);
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    .custom-slider:focus::-ms-thumb {
-      transform: scale(1.1);
-      box-shadow: 0 6px 16px rgba(120, 71, 240, 0.5);
-    }
-    .custom-slider::-webkit-slider-runnable-track {
-      background:rgb(125, 128, 133);
-    }
-    .custom-slider::-ms-fill-lower {
-      background:rgb(153, 154, 156);
-    }
-    .custom-slider::-ms-fill-upper {
-      background:rgb(143, 146, 153);
-    }
-  `;
-  if (!document.head.querySelector('style[data-wealth-calc-slider]')) {
-    style.setAttribute('data-wealth-calc-slider', 'true');
-    document.head.appendChild(style);
-  }
-  if (!document.head.querySelector('style[data-wealth-calc-age-slider]')) {
-    const style = document.createElement('style');
-    style.setAttribute('data-wealth-calc-age-slider', 'true');
-    style.innerHTML = `
-      .age-slider-modern {
-        width: 100%;
-        height: 6px;
-        border-radius: 4px;
-        background: linear-gradient(to right, #e5e7eb, #d1d5db) !important;
-        background-color: #e5e7eb !important;
-        outline: none;
-        -webkit-appearance: none;
-        appearance: none;
-        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
-      }
-      .age-slider-modern::-webkit-slider-thumb {
-        appearance: none;
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #7847f0, #5f36c7);
-        cursor: pointer;
-        box-shadow: 0 4px 12px rgba(120, 71, 240, 0.2);
-        transition: all 0.3s ease;
-        margin-top: -11px; /* Center thumb: (track height 6px - thumb height 28px) / 2 = -11px */
-      }
-      .age-slider-modern:focus::-webkit-slider-thumb,
-      .age-slider-modern::-webkit-slider-thumb:hover {
-        transform: scale(1.1);
-        box-shadow: 0 6px 16px rgba(120, 71, 240, 0.5);
-      }
-      .age-slider-modern::-moz-range-thumb {
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #7847f0, #5f36c7);
-        cursor: pointer;
-        border: none;
-        box-shadow: 0 4px 12px rgba(120, 71, 240, 0.3);
-        transition: all 0.3s ease;
-        margin-top: -11px; /* Center thumb for Firefox */
-      }
-      .age-slider-modern:focus::-moz-range-thumb,
-      .age-slider-modern::-moz-range-thumb:hover {
-        transform: scale(1.1);
-        box-shadow: 0 6px 16px rgba(120, 71, 240, 0.5);
-      }
-      .age-slider-modern::-ms-thumb {
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #7847f0, #5f36c7);
-        cursor: pointer;
-        border: none;
-        box-shadow: 0 4px 12px rgba(87, 43, 201, 0.3);
-        transition: all 0.3s ease;
-        margin-top: -11px; /* Center thumb for IE/Edge */
-      }
-      .age-slider-modern:focus::-ms-thumb {
-        transform: scale(1.1);
-        box-shadow: 0 6px 16px rgba(120, 71, 240, 0.5);
-      }
-      .age-slider-modern::-webkit-slider-runnable-track {
-        background: linear-gradient(to right, #e5e7eb, #d1d5db) !important;
-        background-color: #e5e7eb !important;
-        height: 6px;
-        border-radius: 4px;
-        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
-      }
-      .age-slider-modern::-ms-fill-lower {
-        background: linear-gradient(to right, #e5e7eb, #d1d5db) !important;
-        background-color: #e5e7eb !important;
-        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
-      }
-      .age-slider-modern::-ms-fill-upper {
-        background: linear-gradient(to right, #e5e7eb, #d1d5db) !important;
-        background-color: #e5e7eb !important;
-        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
-      }
-      .age-slider-modern::-moz-range-track {
-        background: linear-gradient(to right, #e5e7eb, #d1d5db) !important;
-        background-color: #e5e7eb !important;
-        height: 6px;
-        border-radius: 4px;
-        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
-        border: none;
-      }
-    `;
-    document.head.appendChild(style);
-  }
-}

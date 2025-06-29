@@ -67,6 +67,7 @@ const AddBillScreen: React.FC<AddBillScreenProps> = ({ familyMembers, onBack, on
             type="button"
             onClick={() => setShowFamilyDropdown(!showFamilyDropdown)}
             className="w-full px-4 py-4 bg-gray-100 border-0 rounded-2xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all flex items-center justify-between text-base"
+            aria-label="Select family member"
           >
             <span className={formData.familyMemberId ? 'text-gray-900' : 'text-gray-500'}>
               {formData.familyMemberId 
@@ -105,6 +106,7 @@ const AddBillScreen: React.FC<AddBillScreenProps> = ({ familyMembers, onBack, on
             onChange={(e) => setFormData(prev => ({ ...prev, provider: e.target.value }))}
             className="w-full pl-12 pr-4 py-4 bg-gray-100 border-0 rounded-2xl text-gray-900 placeholder-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-base"
             placeholder="Search for Biller"
+            aria-label="Biller name"
           />
         </div>
 
@@ -115,6 +117,7 @@ const AddBillScreen: React.FC<AddBillScreenProps> = ({ familyMembers, onBack, on
           onChange={(e) => setFormData(prev => ({ ...prev, accountNumber: e.target.value }))}
           className="w-full px-4 py-4 bg-gray-100 border-0 rounded-2xl text-gray-900 placeholder-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-base"
           placeholder="Consumer/Account Number"
+          aria-label="Account number"
         />
 
         {/* Fetch Bill Details Button */}
@@ -128,11 +131,13 @@ const AddBillScreen: React.FC<AddBillScreenProps> = ({ familyMembers, onBack, on
 
         {/* Amount */}
         <input
-          type="text"
+          type="number"
           value={formData.amount}
           onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
           className="w-full px-4 py-4 bg-gray-100 border-0 rounded-2xl text-gray-900 placeholder-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-base"
           placeholder="Amount"
+          aria-label="Bill amount"
+          inputMode="numeric"
         />
 
         {/* Due Date */}
@@ -142,6 +147,7 @@ const AddBillScreen: React.FC<AddBillScreenProps> = ({ familyMembers, onBack, on
           onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
           className="w-full px-4 py-4 bg-gray-100 border-0 rounded-2xl text-gray-900 placeholder-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-base"
           placeholder="Due Date"
+          aria-label="Due date"
         />
 
         {/* Family-Safe Payments */}

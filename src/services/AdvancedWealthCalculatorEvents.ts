@@ -10,18 +10,18 @@ import { CalculatorData } from '../types/calculator';
 export class AdvancedWealthCalculatorEvents {
   // Wedding cost ranges by city type (in INR)
   private static readonly WEDDING_COSTS: Record<string, { min: number; max: number }> = {
-    'metro': { min: 1500000, max: 5000000 }, // ₹15L to ₹50L
-    'tier2': { min: 800000, max: 2500000 }, // ₹8L to ₹25L
-    'tier3': { min: 500000, max: 1500000 }, // ₹5L to ₹15L
-    'rural': { min: 300000, max: 1000000 } // ₹3L to ₹10L
+    'metro': { min: 1800000, max: 6000000 }, // Increased from ₹15L-50L to ₹18L-60L
+    'tier2': { min: 1000000, max: 3000000 }, // Increased from ₹8L-25L to ₹10L-30L
+    'tier3': { min: 600000, max: 1800000 }, // Increased from ₹5L-15L to ₹6L-18L
+    'rural': { min: 400000, max: 1200000 } // Increased from ₹3L-10L to ₹4L-12L
   };
 
   // Health emergency cost ranges by severity
   private static readonly HEALTH_EMERGENCY_COSTS: Record<string, { min: number; max: number }> = {
-    'minor': { min: 50000, max: 200000 }, // ₹50k to ₹2L
-    'moderate': { min: 200000, max: 800000 }, // ₹2L to ₹8L
-    'major': { min: 800000, max: 3000000 }, // ₹8L to ₹30L
-    'critical': { min: 3000000, max: 10000000 } // ₹30L to ₹1Cr
+    'minor': { min: 60000, max: 250000 }, // Increased from ₹50k-2L to ₹60k-2.5L
+    'moderate': { min: 250000, max: 1000000 }, // Increased from ₹2L-8L to ₹2.5L-10L
+    'major': { min: 1000000, max: 3500000 }, // Increased from ₹8L-30L to ₹10L-35L
+    'critical': { min: 3500000, max: 12000000 } // Increased from ₹30L-1Cr to ₹35L-1.2Cr
   };
 
   // Property inheritance ranges
@@ -34,10 +34,10 @@ export class AdvancedWealthCalculatorEvents {
 
   // Career event probability and impact ranges
   private static readonly CAREER_EVENTS = {
-    'promotion': { probability: 0.08, impactRange: { min: 0.1, max: 0.3 } },
-    'job_change': { probability: 0.06, impactRange: { min: -0.2, max: 0.4 } },
-    'layoff': { probability: 0.02, impactRange: { min: -0.5, max: -0.2 } },
-    'business_expansion': { probability: 0.04, impactRange: { min: 0.2, max: 0.6 } }
+    'promotion': { probability: 0.06, impactRange: { min: 0.08, max: 0.25 } }, // Reduced probability, impact
+    'job_change': { probability: 0.08, impactRange: { min: -0.25, max: 0.35 } }, // Increased probability, wider range
+    'layoff': { probability: 0.04, impactRange: { min: -0.60, max: -0.25 } }, // Increased probability and impact
+    'business_expansion': { probability: 0.03, impactRange: { min: 0.15, max: 0.50 } } // Reduced probability
   };
 
   /**
@@ -133,7 +133,7 @@ export class AdvancedWealthCalculatorEvents {
     let netImpact = 0;
     
     // Health emergency probability increases with age
-    const baseHealthEmergencyProb = Math.min(0.12, (currentAge - 35) * 0.008);
+    const baseHealthEmergencyProb = Math.min(0.15, (currentAge - 35) * 0.01); // Increased from 0.008 to 0.01
     
     // Adjust for family health history (simplified)
     let familyHealthMultiplier = 1.0;
@@ -149,11 +149,11 @@ export class AdvancedWealthCalculatorEvents {
       // Determine severity based on age
       let severity: string;
       if (currentAge < 50) {
-        severity = Math.random() < 0.7 ? 'minor' : 'moderate';
+        severity = Math.random() < 0.6 ? 'minor' : 'moderate'; // Increased chance of moderate
       } else if (currentAge < 65) {
-        severity = Math.random() < 0.5 ? 'minor' : Math.random() < 0.8 ? 'moderate' : 'major';
+        severity = Math.random() < 0.4 ? 'minor' : Math.random() < 0.7 ? 'moderate' : 'major'; // Increased chance of major
       } else {
-        severity = Math.random() < 0.3 ? 'minor' : Math.random() < 0.6 ? 'moderate' : Math.random() < 0.8 ? 'major' : 'critical';
+        severity = Math.random() < 0.2 ? 'minor' : Math.random() < 0.5 ? 'moderate' : Math.random() < 0.8 ? 'major' : 'critical'; // Increased chance of critical
       }
       
       const costRange = this.HEALTH_EMERGENCY_COSTS[severity];
@@ -247,7 +247,7 @@ export class AdvancedWealthCalculatorEvents {
     
     // Annual social expenses (festivals, ceremonies, gifts)
     const baseIncome = inputs.financialFoundation.annualIncome;
-    const annualSocialCosts = baseIncome * 0.05; // 5% of income for social expenses
+    const annualSocialCosts = baseIncome * 0.06; // Increased from 0.05 to 0.06
     
     // Adjust for city type (higher in metros due to higher expectations)
     const cityMultiplier = this.getCitySocialMultiplier(inputs.coreIdentity.location.cityType);
@@ -276,14 +276,14 @@ export class AdvancedWealthCalculatorEvents {
       // Special education milestones
       if (childAgeInYear === 18) {
         // College admission costs
-        const admissionCost = 50000 + Math.random() * 100000; // ₹50k to ₹1.5L
+        const admissionCost = 60000 + Math.random() * 120000; // Increased from ₹50k-1.5L to ₹60k-1.8L
         netImpact -= admissionCost;
         events.push(`${child.name}'s college admission: ₹${(admissionCost/100000).toFixed(1)}L`);
       }
       
       if (childAgeInYear === 22) {
         // Post-graduation or job search costs
-        const postGradCost = 100000 + Math.random() * 200000; // ₹1L to ₹3L
+        const postGradCost = 120000 + Math.random() * 250000; // Increased from ₹1L-3L to ₹1.2L-3.7L
         netImpact -= postGradCost;
         events.push(`${child.name}'s post-graduation: ₹${(postGradCost/100000).toFixed(1)}L`);
       }
@@ -319,10 +319,10 @@ export class AdvancedWealthCalculatorEvents {
    */
   private static getCitySocialMultiplier(cityType: string): number {
     switch (cityType) {
-      case 'metro': return 1.4; // 40% higher in metros
-      case 'tier2': return 1.1; // 10% higher in tier 2
-      case 'tier3': return 0.9; // 10% lower in tier 3
-      case 'rural': return 0.7; // 30% lower in rural
+      case 'metro': return 1.5; // Increased from 1.4
+      case 'tier2': return 1.2; // Increased from 1.1
+      case 'tier3': return 0.9; // Same
+      case 'rural': return 0.7; // Same
       default: return 1.0;
     }
   }
@@ -358,4 +358,4 @@ export class AdvancedWealthCalculatorEvents {
       return 0.05; // Lower probability in other age ranges
     }
   }
-} 
+}

@@ -169,9 +169,9 @@ export class AdvancedWealthCalculatorRecommendations {
     if (complexityAnalysis.coordinationOpportunities.length > 0) {
       complexityAnalysis.coordinationOpportunities.slice(0, 3).forEach((opp: any) => {
         recommendations.push({
-          action: `Implement ${opp.opportunity.toLowerCase()}`,
-          timeframe: opp.timeToImplement,
-          expectedBenefit: `Save ${(opp.potentialSavings * 100).toFixed(1)}% of annual expenses`
+          action: `Implement ${typeof opp === 'string' ? opp.toLowerCase() : opp.opportunity.toLowerCase()}`,
+          timeframe: typeof opp === 'string' ? '6 months' : opp.timeToImplement,
+          expectedBenefit: typeof opp === 'string' ? 'Reduce family financial stress and improve coordination' : `Save ${(opp.potentialSavings * 100).toFixed(1)}% of annual expenses`
         });
       });
     }
@@ -471,4 +471,4 @@ export class AdvancedWealthCalculatorRecommendations {
     
     return insights;
   }
-} 
+}

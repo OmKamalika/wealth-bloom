@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Share2, Download, Copy, Facebook, Twitter, Linkedin, MessageCircle } from 'lucide-react';
+import { analytics } from '../utils/analytics';
+import { useCurrency } from '../contexts/CurrencyContext';
+import { formatCurrency } from '../utils/currencyUtils';
 
 interface SocialShareModalProps {
   isOpen: boolean;
@@ -14,39 +17,102 @@ const SocialShareModal: React.FC<SocialShareModalProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [ogImageUrl, setOgImageUrl] = useState('');
+  const { currencyInfo } = useCurrency();
+
+  // Generate share URL and OG image when modal opens
+  useEffect(() => {
+    if (isOpen && calculatorData) {
+      generateShareUrl();
+      generateOgImage();
+    }
+  }, [isOpen, calculatorData]);
 
   if (!isOpen) return null;
 
-  const { inputs, results } = calculatorData;
+  const { inputs, results } = calculatorData || {};
 
   // Generate shareable content
-  const shareText = `😱 I just discovered something shocking about my family's wealth timeline. My grandchildren will inherit $0 by ${results.extinctionYear}. 70% of family wealth disappears by generation 2. Find out when YOUR wealth dies.`;
-  
-  const shareUrl_generated = `${window.location.origin}/shared/${generateShareId(calculatorData)}`;
+  const shareText = `😱 I just discovered something shocking about my family's wealth timeline. My grandchildren will inherit ${formatCurrency(results?.grandchildrenInheritance || 0, currencyInfo)} by ${results?.extinctionYear || 2050}. 70% of family wealth disappears by generation 2. Find out when YOUR wealth dies.`;
+
+  // Generate share URL
+  const generateShareUrl = async () => {
+    try {
+      // In a real implementation, this would call a backend API to create a shareable link
+      // For now, we'll simulate it with a local URL
+      const shareId = generateShareId(calculatorData);
+      const generatedUrl = `${window.location.origin}/shared/${shareId}`;
+      setShareUrl(generatedUrl);
+    } catch (error) {
+      console.error('Failed to generate share URL:', error);
+      // Fallback to a basic URL
+      setShareUrl(`${window.location.origin}/calculator`);
+    }
+  };
+
+  // Generate OG image
+  const generateOgImage = async () => {
+    setIsGeneratingImage(true);
+    try {
+      // In a real implementation, this would call a backend API to generate an image
+      // For now, we'll simulate it with a placeholder
+      // await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
+      
+      // This would be replaced with the actual API call:
+      // const response = await fetch('/api/generate-og-image', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({
+      //     extinctionYear: results.extinctionYear,
+      //     yearsRemaining: results.yearsRemaining,
+      //     childrenInheritance: results.childrenInheritance,
+      //     grandchildrenInheritance: results.grandchildrenInheritance,
+      //     currencyCode: currencyInfo.code,
+      //     locale: currencyInfo.locale
+      //   })
+      // });
+      // const data = await response.json();
+      // setOgImageUrl(data.imageUrl);
+      
+      // Placeholder for demo
+      setOgImageUrl('https://images.pexels.com/photos/3943716/pexels-photo-3943716.jpeg?auto=compress&cs=tinysrgb&w=1200&h=630&fit=crop');
+    } catch (error) {
+      console.error('Failed to generate OG image:', error);
+    } finally {
+      setIsGeneratingImage(false);
+    }
+  };
 
   const generateShareId = (data: any): string => {
     // In production, this would create a database entry and return the ID
-    return btoa(JSON.stringify({
+    // For now, we'll create a simple hash of the key data
+    const keyData = {
       extinctionYear: data.results.extinctionYear,
       childrenInheritance: data.results.childrenInheritance,
-      netWorth: data.inputs.netWorth,
-      children: data.inputs.children
-    })).substring(0, 12);
+      netWorth: data.inputs.financialFoundation?.currentNetWorth || data.inputs.netWorth,
+      children: data.inputs.childrenContext?.children?.length || data.inputs.children
+    };
+    
+    // Create a simple hash
+    return btoa(JSON.stringify(keyData)).substring(0, 12);
   };
 
   const handleCopyLink = async () => {
     try {
-      await navigator.clipboard.writeText(shareUrl_generated);
+      await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
+      analytics.track('share_link_copied', { source: 'social_modal' });
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy link');
+      console.error('Failed to copy link:', err);
     }
   };
 
   const handleSocialShare = (platform: string) => {
     const encodedText = encodeURIComponent(shareText);
-    const encodedUrl = encodeURIComponent(shareUrl_generated);
+    const encodedUrl = encodeURIComponent(shareUrl);
     
     let shareUrl = '';
     
@@ -66,13 +132,64 @@ const SocialShareModal: React.FC<SocialShareModalProps> = ({
     }
     
     if (shareUrl) {
+      analytics.track('social_share_initiated', { 
+        platform, 
+        extinction_year: results?.extinctionYear,
+        emotional_state: analytics.getEmotionalMetrics()
+      });
       window.open(shareUrl, '_blank', 'width=600,height=400');
     }
   };
 
-  const handleDownloadPDF = () => {
-    // In production, this would generate and download a PDF report
-    console.log('Generating PDF report...');
+  const handleDownloadPDF = async () => {
+    setIsGeneratingPdf(true);
+    try {
+      analytics.track('pdf_download_initiated', { 
+        extinction_year: results?.extinctionYear
+      });
+      
+      // In a real implementation, this would call a backend API to generate a PDF
+      // For now, we'll simulate it
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
+      
+      // This would be replaced with the actual API call:
+      // const response = await fetch('/api/generate-pdf', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({
+      //     ...calculatorData,
+      //     currencyCode: currencyInfo.code,
+      //     locale: currencyInfo.locale
+      //   })
+      // });
+      
+      // if (response.ok) {
+      //   const blob = await response.blob();
+      //   const url = window.URL.createObjectURL(blob);
+      //   const a = document.createElement('a');
+      //   a.href = url;
+      //   a.download = `wealth-extinction-report-${new Date().toISOString().split('T')[0]}.pdf`;
+      //   document.body.appendChild(a);
+      //   a.click();
+      //   window.URL.revokeObjectURL(url);
+      //   document.body.removeChild(a);
+      // }
+      
+      // For demo, show success message
+      alert('PDF report would be downloaded in the actual implementation');
+      
+      analytics.track('pdf_download_completed', { 
+        extinction_year: results?.extinctionYear
+      });
+    } catch (error) {
+      console.error('Failed to download PDF:', error);
+      analytics.track('pdf_download_failed', { 
+        extinction_year: results?.extinctionYear,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   return (
@@ -84,6 +201,7 @@ const SocialShareModal: React.FC<SocialShareModalProps> = ({
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
+            aria-label="Close"
           >
             <X className="w-6 h-6" />
           </button>
@@ -93,7 +211,7 @@ const SocialShareModal: React.FC<SocialShareModalProps> = ({
         <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-2xl p-6 mb-6">
           <div className="text-center">
             <div className="text-3xl font-bold text-red-600 mb-2">
-              {results.extinctionYear}
+              {results?.extinctionYear || 2050}
             </div>
             <div className="text-sm text-gray-600 mb-4">
               Your family's wealth extinction date
@@ -101,11 +219,11 @@ const SocialShareModal: React.FC<SocialShareModalProps> = ({
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <div className="font-medium text-gray-900">Today</div>
-                <div className="text-gray-600">${inputs.netWorth.toLocaleString()}</div>
+                <div className="text-gray-600">{formatCurrency(results?.currentWealth || 0, currencyInfo)}</div>
               </div>
               <div>
                 <div className="font-medium text-gray-900">Children Inherit</div>
-                <div className="text-gray-600">${results.childrenInheritance.toLocaleString()}</div>
+                <div className="text-gray-600">{formatCurrency(results?.childrenInheritance || 0, currencyInfo)}</div>
               </div>
             </div>
           </div>
@@ -120,6 +238,7 @@ const SocialShareModal: React.FC<SocialShareModalProps> = ({
               <button
                 onClick={() => handleSocialShare('facebook')}
                 className="flex items-center gap-2 p-3 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors"
+                aria-label="Share on Facebook"
               >
                 <Facebook className="w-5 h-5 text-blue-600" />
                 <span className="text-blue-600 font-medium">Facebook</span>
@@ -127,6 +246,7 @@ const SocialShareModal: React.FC<SocialShareModalProps> = ({
               <button
                 onClick={() => handleSocialShare('twitter')}
                 className="flex items-center gap-2 p-3 bg-sky-50 hover:bg-sky-100 rounded-xl transition-colors"
+                aria-label="Share on Twitter"
               >
                 <Twitter className="w-5 h-5 text-sky-600" />
                 <span className="text-sky-600 font-medium">Twitter</span>
@@ -134,6 +254,7 @@ const SocialShareModal: React.FC<SocialShareModalProps> = ({
               <button
                 onClick={() => handleSocialShare('linkedin')}
                 className="flex items-center gap-2 p-3 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors"
+                aria-label="Share on LinkedIn"
               >
                 <Linkedin className="w-5 h-5 text-blue-700" />
                 <span className="text-blue-700 font-medium">LinkedIn</span>
@@ -141,6 +262,7 @@ const SocialShareModal: React.FC<SocialShareModalProps> = ({
               <button
                 onClick={() => handleSocialShare('whatsapp')}
                 className="flex items-center gap-2 p-3 bg-green-50 hover:bg-green-100 rounded-xl transition-colors"
+                aria-label="Share on WhatsApp"
               >
                 <MessageCircle className="w-5 h-5 text-green-600" />
                 <span className="text-green-600 font-medium">WhatsApp</span>
@@ -154,9 +276,10 @@ const SocialShareModal: React.FC<SocialShareModalProps> = ({
             <div className="flex gap-2">
               <input
                 type="text"
-                value={shareUrl_generated}
+                value={shareUrl}
                 readOnly
                 className="flex-1 px-3 py-2 bg-gray-100 border border-gray-200 rounded-xl text-sm"
+                aria-label="Share URL"
               />
               <button
                 onClick={handleCopyLink}
@@ -165,6 +288,7 @@ const SocialShareModal: React.FC<SocialShareModalProps> = ({
                     ? 'bg-green-100 text-green-800' 
                     : 'bg-purple-100 text-purple-800 hover:bg-purple-200'
                 }`}
+                aria-label="Copy link"
               >
                 {copied ? '✓' : <Copy className="w-4 h-4" />}
               </button>
@@ -174,10 +298,21 @@ const SocialShareModal: React.FC<SocialShareModalProps> = ({
           {/* Download PDF */}
           <button
             onClick={handleDownloadPDF}
-            className="w-full flex items-center justify-center gap-2 p-3 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+            disabled={isGeneratingPdf}
+            className="w-full flex items-center justify-center gap-2 p-3 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors disabled:opacity-50"
+            aria-label="Download PDF report"
           >
-            <Download className="w-5 h-5 text-gray-600" />
-            <span className="text-gray-600 font-medium">Download PDF Report</span>
+            {isGeneratingPdf ? (
+              <>
+                <div className="w-5 h-5 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-gray-600 font-medium">Generating PDF...</span>
+              </>
+            ) : (
+              <>
+                <Download className="w-5 h-5 text-gray-600" />
+                <span className="text-gray-600 font-medium">Download PDF Report</span>
+              </>
+            )}
           </button>
         </div>
 
@@ -188,6 +323,13 @@ const SocialShareModal: React.FC<SocialShareModalProps> = ({
             "{shareText}"
           </p>
         </div>
+
+        {/* Hidden OG image for debugging */}
+        {ogImageUrl && (
+          <div className="hidden">
+            <img src={ogImageUrl} alt="Share preview" />
+          </div>
+        )}
       </div>
     </div>
   );

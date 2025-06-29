@@ -488,6 +488,34 @@ export class AdvancedWealthCalculatorComplexity {
       drivers.push('Complex employment situation');
     }
 
+    // If no high complexity areas, add the highest scoring areas
+    if (drivers.length === 0) {
+      const sortedScores = Object.entries(scores)
+        .filter(([key]) => key.endsWith('Complexity'))
+        .sort(([, a], [, b]) => (b as number) - (a as number));
+      
+      if (sortedScores.length > 0) {
+        const highestScore = sortedScores[0];
+        if (highestScore[0] === 'childrenComplexity') {
+          drivers.push('Children education planning needs');
+        } else if (highestScore[0] === 'parentCareComplexity') {
+          drivers.push('Parent care considerations');
+        } else if (highestScore[0] === 'financialComplexity') {
+          drivers.push('Financial planning optimization');
+        }
+      }
+      
+      // Add a second driver if available
+      if (sortedScores.length > 1) {
+        const secondHighestScore = sortedScores[1];
+        if (secondHighestScore[0] === 'healthComplexity') {
+          drivers.push('Health-related financial planning');
+        } else if (secondHighestScore[0] === 'geographicComplexity') {
+          drivers.push('Geographic family coordination');
+        }
+      }
+    }
+
     return drivers;
   }
 
@@ -673,4 +701,4 @@ export class AdvancedWealthCalculatorComplexity {
 
     return mitigations[risk] || 'Monitor and plan for potential risks';
   }
-} 
+}

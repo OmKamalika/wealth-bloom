@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, ArrowLeft, Home, Building, Briefcase, Diamond, ChevronRight } from 'lucide-react';
 import { AssetInfo } from '../types';
+import { useCurrency } from '../contexts/CurrencyContext';
+import { formatCurrency } from '../utils/currencyUtils';
 
 interface AssetsScreenProps {
   onBack: () => void;
@@ -15,6 +17,7 @@ const AssetsScreen: React.FC<AssetsScreenProps> = ({ onBack, onNext }) => {
     specialItems: 500000,
     total: 6500000
   });
+  const { currencyInfo } = useCurrency();
 
   // Calculate total whenever individual assets change
   useEffect(() => {
@@ -25,10 +28,6 @@ const AssetsScreen: React.FC<AssetsScreenProps> = ({ onBack, onNext }) => {
   const handleAssetChange = (field: keyof AssetInfo, value: string) => {
     const numValue = parseInt(value.replace(/[^\d]/g, '')) || 0;
     setAssets(prev => ({ ...prev, [field]: numValue }));
-  };
-
-  const formatCurrency = (amount: number) => {
-    return `₹${amount.toLocaleString('en-IN')}`;
   };
 
   const handleNext = () => {
@@ -50,10 +49,10 @@ const AssetsScreen: React.FC<AssetsScreenProps> = ({ onBack, onNext }) => {
         {/* Progress */}
         <div className="mb-8">
           <div className="text-sm text-gray-600 mb-2">Step 4 of 5</div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div className="bg-gradient-to-r from-purple-600 to-purple-700 h-2 rounded-full w-4/5 transition-all duration-300"></div>
+          <div className="progress-bar-track-custom h-2">
+            <div className="progress-bar-fill-custom h-2 rounded-full w-4/5 transition-all duration-300"></div>
           </div>
-          <div className="text-sm text-purple-600 mt-2">Almost there!</div>
+          <div className="text-sm text-custom-purple mt-2">Almost there!</div>
         </div>
 
         {/* Header */}
@@ -65,7 +64,7 @@ const AssetsScreen: React.FC<AssetsScreenProps> = ({ onBack, onNext }) => {
 
         {/* Quick Assets */}
         <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Assets</h2>
+          <h2 className="text-lg font-bold text-gray-900 mb-4">Quick Assets</h2>
           
           <div className="space-y-4">
             {/* Home */}
@@ -75,15 +74,17 @@ const AssetsScreen: React.FC<AssetsScreenProps> = ({ onBack, onNext }) => {
                   <Home className="w-5 h-5 text-gray-600" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">Home</h3>
+                  <h3 className="font-semibold text-gray-900 text-base">Home</h3>
                   <p className="text-sm text-gray-600">Home, condo, or other real estate</p>
                   <div className="mt-2">
                     <div className="text-sm text-gray-600 mb-1">Approx:</div>
                     <input
-                      type="text"
-                      value={formatCurrency(assets.home)}
+                      type="number"
+                      value={assets.home}
                       onChange={(e) => handleAssetChange('home', e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                      className="input-field-custom"
+                      aria-label="Home value"
+                      inputMode="numeric"
                     />
                   </div>
                 </div>
@@ -97,15 +98,17 @@ const AssetsScreen: React.FC<AssetsScreenProps> = ({ onBack, onNext }) => {
                   <Building className="w-5 h-5 text-gray-600" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">Financial Accounts</h3>
+                  <h3 className="font-semibold text-gray-900 text-base">Financial Accounts</h3>
                   <p className="text-sm text-gray-600">Checking, savings, Demat and other accounts</p>
                   <div className="mt-2">
                     <div className="text-sm text-gray-600 mb-1">Approx:</div>
                     <input
-                      type="text"
-                      value={formatCurrency(assets.financialAccounts)}
+                      type="number"
+                      value={assets.financialAccounts}
                       onChange={(e) => handleAssetChange('financialAccounts', e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                      className="input-field-custom"
+                      aria-label="Financial accounts value"
+                      inputMode="numeric"
                     />
                   </div>
                 </div>
@@ -119,15 +122,17 @@ const AssetsScreen: React.FC<AssetsScreenProps> = ({ onBack, onNext }) => {
                   <Briefcase className="w-5 h-5 text-gray-600" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">Everything Else</h3>
+                  <h3 className="font-semibold text-gray-900 text-base">Everything Else</h3>
                   <p className="text-sm text-gray-600">Vehicles, jewelry, and other valuables</p>
                   <div className="mt-2">
                     <div className="text-sm text-gray-600 mb-1">Approx:</div>
                     <input
-                      type="text"
-                      value={formatCurrency(assets.everythingElse)}
+                      type="number"
+                      value={assets.everythingElse}
                       onChange={(e) => handleAssetChange('everythingElse', e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                      className="input-field-custom"
+                      aria-label="Other assets value"
+                      inputMode="numeric"
                     />
                   </div>
                 </div>
@@ -138,7 +143,7 @@ const AssetsScreen: React.FC<AssetsScreenProps> = ({ onBack, onNext }) => {
 
         {/* Special Items */}
         <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Special Items</h2>
+          <h2 className="text-lg font-bold text-gray-900 mb-4">Special Items</h2>
           
           <div className="bg-gray-50 rounded-2xl p-4">
             <div className="flex items-start gap-3 mb-3">
@@ -146,9 +151,9 @@ const AssetsScreen: React.FC<AssetsScreenProps> = ({ onBack, onNext }) => {
                 <Diamond className="w-5 h-5 text-gray-600" />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-gray-900">Special Items</h3>
+                <h3 className="font-semibold text-gray-900 text-base">Special Items</h3>
                 <p className="text-sm text-gray-600">Art, collectibles, and other unique items</p>
-                <p className="text-sm text-gray-600 mt-1">Approx: {formatCurrency(assets.specialItems)}</p>
+                <p className="text-sm text-gray-600 mt-1">Approx: {formatCurrency(assets.specialItems, currencyInfo)}</p>
               </div>
             </div>
           </div>
@@ -171,7 +176,7 @@ const AssetsScreen: React.FC<AssetsScreenProps> = ({ onBack, onNext }) => {
         <div className="bg-purple-50 rounded-2xl p-4 mb-8">
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Total Assets</h3>
           <div className="text-2xl font-bold text-purple-600 mb-2">
-            ~{formatCurrency(assets.total)}
+            ~{formatCurrency(assets.total, currencyInfo)}
           </div>
           <p className="text-sm text-gray-600">
             Most people have more than they think. You're doing great.
@@ -181,10 +186,10 @@ const AssetsScreen: React.FC<AssetsScreenProps> = ({ onBack, onNext }) => {
         {/* Next Button */}
         <button
           onClick={handleNext}
-          className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-bold py-4 px-6 rounded-2xl text-lg transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+          className="btn-primary-custom w-full"
         >
           Next: Make Your Choices
-          <ArrowRight className="w-5 h-5" />
+          <ArrowRight className="w-5 h-5 ml-2" />
         </button>
       </div>
     </div>

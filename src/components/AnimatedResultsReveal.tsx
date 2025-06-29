@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useAnimationControls } from 'framer-motion';
+import { useCurrency } from '../contexts/CurrencyContext';
+import { formatCurrency } from '../utils/currencyUtils';
 
 interface AnimatedResultsRevealProps {
   calculatorData: any;
@@ -15,13 +17,23 @@ const AnimatedResultsReveal: React.FC<AnimatedResultsRevealProps> = ({
   const [currentScene, setCurrentScene] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const { inputs, results } = calculatorData;
-  const childrenNames = inputs.childrenNames.filter((name: string) => name.trim() !== '');
+  const { currencyInfo } = useCurrency();
+  
+  // Extract children names from the correct data structure
+  const childrenNames = inputs?.childrenContext?.children?.map((child: any) => child.name) || 
+                       inputs?.childrenNames || 
+                       ['Your Child'];
+
+  // Animation controls for orchestrating complex sequences
+  const titleControls = useAnimationControls();
+  const wealthControls = useAnimationControls();
+  const impactControls = useAnimationControls();
 
   const scenes = [
     {
       id: 'current-status',
       duration: 5000,
-      title: `The ${childrenNames[0] || 'Johnson'} Family Today`,
+      title: `The ${childrenNames[0] || 'Family'} Family Today`,
       component: (
         <motion.div 
           className="text-center"
@@ -43,7 +55,7 @@ const AnimatedResultsReveal: React.FC<AnimatedResultsRevealProps> = ({
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 1, duration: 0.6 }}
           >
-            Net Worth: ${inputs.netWorth.toLocaleString()}
+            Net Worth: {formatCurrency(results.currentWealth, currencyInfo)}
           </motion.h3>
           <motion.p 
             className="text-gray-600 italic"
@@ -68,11 +80,27 @@ const AnimatedResultsReveal: React.FC<AnimatedResultsRevealProps> = ({
             animate={{ opacity: 1 }}
             transition={{ duration: 1 }}
           >
-            {[
-              { year: '2025', amount: inputs.netWorth, color: 'from-green-400 to-green-500', height: 'h-32' },
-              { year: '2035', amount: inputs.netWorth * 0.85, color: 'from-yellow-400 to-yellow-500', height: 'h-24' },
-              { year: '2045', amount: inputs.netWorth * 0.64, color: 'from-orange-400 to-orange-500', height: 'h-16' },
-              { year: '2055', amount: inputs.netWorth * 0.33, color: 'from-red-400 to-red-500', height: 'h-8' }
+            {/* Generate dynamic wealth decay visualization based on actual projections */}
+            {results.projections && results.projections.length > 0 && [
+              { year: 2025, amount: results.currentWealth, color: 'from-green-400 to-green-500', height: 'h-32' },
+              { 
+                year: 2025 + Math.floor(results.yearsRemaining * 0.25), 
+                amount: results.projections[Math.floor(results.projections.length * 0.25)]?.wealth || results.currentWealth * 0.75, 
+                color: 'from-yellow-400 to-yellow-500', 
+                height: 'h-24' 
+              },
+              { 
+                year: 2025 + Math.floor(results.yearsRemaining * 0.5), 
+                amount: results.projections[Math.floor(results.projections.length * 0.5)]?.wealth || results.currentWealth * 0.5, 
+                color: 'from-orange-400 to-orange-500', 
+                height: 'h-16' 
+              },
+              { 
+                year: 2025 + Math.floor(results.yearsRemaining * 0.75), 
+                amount: results.projections[Math.floor(results.projections.length * 0.75)]?.wealth || results.currentWealth * 0.25, 
+                color: 'from-red-400 to-red-500', 
+                height: 'h-8' 
+              }
             ].map((bar, index) => (
               <motion.div 
                 key={bar.year}
@@ -94,7 +122,7 @@ const AnimatedResultsReveal: React.FC<AnimatedResultsRevealProps> = ({
                   animate={{ opacity: 1 }}
                   transition={{ delay: index * 0.5 + 0.8, duration: 0.4 }}
                 >
-                  {bar.year}<br/>${Math.round(bar.amount/1000)}K
+                  {bar.year}<br/>{formatCurrency(bar.amount, currencyInfo, { notation: 'compact' })}
                 </motion.p>
               </motion.div>
             ))}
@@ -116,34 +144,59 @@ const AnimatedResultsReveal: React.FC<AnimatedResultsRevealProps> = ({
       title: "When you pass away...",
       component: (
         <motion.div className="text-center space-y-6">
-          {childrenNames.map((name, index) => (
-            <motion.div 
-              key={name}
-              className="bg-red-50 rounded-2xl p-6"
-              initial={{ x: index % 2 === 0 ? -100 : 100, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: index * 0.8, duration: 0.8, type: "spring" }}
-            >
-              <h4 className="text-lg font-bold text-gray-900 mb-4">
-                {index === 0 ? '👧' : '👦'} {name} (age {47 - index * 2}) inherits:
-              </h4>
+          {/* Show inheritance for each child */}
+          {results.familyImpact?.inheritance?.children?.length > 0 ? 
+            results.familyImpact.inheritance.children.map((child: any, index: number) => (
               <motion.div 
-                className="text-3xl font-bold text-red-600"
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: index * 0.8 + 0.5, duration: 0.6, type: "spring", bounce: 0.3 }}
+                key={child.name || index}
+                className="bg-red-50 rounded-2xl p-6"
+                initial={{ x: index % 2 === 0 ? -100 : 100, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ delay: index * 0.8, duration: 0.8, type: "spring" }}
               >
-                ${results.childrenInheritance.toLocaleString()}
+                <h4 className="text-lg font-bold text-gray-900 mb-4">
+                  {index === 0 ? '👧' : '👦'} {child.name} (age {child.age || 'adult'}) inherits:
+                </h4>
+                <motion.div 
+                  className="text-3xl font-bold text-red-600"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: index * 0.8 + 0.5, duration: 0.6, type: "spring", bounce: 0.3 }}
+                >
+                  {formatCurrency(child.inheritance, currencyInfo)}
+                </motion.div>
               </motion.div>
-            </motion.div>
-          ))}
+            )) : 
+            // Fallback if no children data
+            childrenNames.map((name: string, index: number) => (
+              <motion.div 
+                key={name}
+                className="bg-red-50 rounded-2xl p-6"
+                initial={{ x: index % 2 === 0 ? -100 : 100, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ delay: index * 0.8, duration: 0.8, type: "spring" }}
+              >
+                <h4 className="text-lg font-bold text-gray-900 mb-4">
+                  {index === 0 ? '👧' : '👦'} {name} inherits:
+                </h4>
+                <motion.div 
+                  className="text-3xl font-bold text-red-600"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: index * 0.8 + 0.5, duration: 0.6, type: "spring", bounce: 0.3 }}
+                >
+                  {formatCurrency(results.childrenInheritance / childrenNames.length, currencyInfo)}
+                </motion.div>
+              </motion.div>
+            ))
+          }
           <motion.p 
             className="text-gray-600"
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 2.5, duration: 0.6 }}
           >
-            Down from the ${inputs.netWorth.toLocaleString()} you have today
+            Down from the {formatCurrency(results.currentWealth, currencyInfo)} you have today
           </motion.p>
         </motion.div>
       )
@@ -187,7 +240,9 @@ const AnimatedResultsReveal: React.FC<AnimatedResultsRevealProps> = ({
             <div className="text-2xl font-bold text-red-800 mb-2">
               {results.yearsRemaining} years remaining
             </div>
-            <div className="text-red-600">Your grandchildren will inherit: $0</div>
+            <div className="text-red-600">
+              Your grandchildren will inherit: {formatCurrency(results.grandchildrenInheritance, currencyInfo)}
+            </div>
           </motion.div>
           <motion.p 
             className="text-gray-600"
@@ -220,7 +275,7 @@ const AnimatedResultsReveal: React.FC<AnimatedResultsRevealProps> = ({
             >
               <h4 className="font-bold text-red-800 mb-2">WITHOUT PROTECTION</h4>
               <p className="text-sm text-red-600">Extinction: {results.extinctionYear}</p>
-              <p className="text-sm text-red-600">Grandchildren get: $0</p>
+              <p className="text-sm text-red-600">Grandchildren get: {formatCurrency(results.grandchildrenInheritance, currencyInfo)}</p>
             </motion.div>
             <motion.div 
               className="bg-green-50 rounded-2xl p-4 text-center"
@@ -229,8 +284,8 @@ const AnimatedResultsReveal: React.FC<AnimatedResultsRevealProps> = ({
               transition={{ delay: 1, duration: 0.8 }}
             >
               <h4 className="font-bold text-green-800 mb-2">WITH PROTECTION</h4>
-              <p className="text-sm text-green-600">Wealth Extends: {results.protectedScenario.extinctionYear}+</p>
-              <p className="text-sm text-green-600">Grandchildren get: ${results.protectedScenario.grandchildrenInheritance.toLocaleString()}</p>
+              <p className="text-sm text-green-600">Wealth Extends: {results.protectedScenario?.extinctionYear || (results.extinctionYear + 5)}+</p>
+              <p className="text-sm text-green-600">Grandchildren get: {formatCurrency(results.protectedScenario?.grandchildrenInheritance || results.grandchildrenInheritance * 3, currencyInfo)}</p>
             </motion.div>
           </motion.div>
           <motion.p 
@@ -271,6 +326,19 @@ const AnimatedResultsReveal: React.FC<AnimatedResultsRevealProps> = ({
     return () => clearTimeout(timer);
   }, [currentScene, isPlaying]);
 
+  // Orchestrate complex animation sequences
+  useEffect(() => {
+    const orchestrateAnimations = async () => {
+      if (currentScene === 3) { // Extinction moment scene
+        await titleControls.start({ scale: [0, 1.2, 1], opacity: [0, 1], transition: { duration: 1.5 } });
+        await wealthControls.start({ y: [50, 0], opacity: [0, 1], transition: { duration: 0.8 } });
+        await impactControls.start({ y: [20, 0], opacity: [0, 1], transition: { duration: 0.6 } });
+      }
+    };
+    
+    orchestrateAnimations();
+  }, [currentScene, titleControls, wealthControls, impactControls]);
+
   const handleSkip = () => {
     setIsPlaying(false);
     onSkip();
@@ -288,12 +356,14 @@ const AnimatedResultsReveal: React.FC<AnimatedResultsRevealProps> = ({
           <button
             onClick={handlePause}
             className="px-3 py-1 bg-white/20 rounded-lg text-sm hover:bg-white/30 transition-colors"
+            aria-label={isPlaying ? "Pause animation" : "Play animation"}
           >
             {isPlaying ? '⏸️' : '▶️'}
           </button>
           <button
             onClick={handleSkip}
             className="px-3 py-1 bg-white/20 rounded-lg text-sm hover:bg-white/30 transition-colors"
+            aria-label="Skip animation"
           >
             Skip ⏭️
           </button>

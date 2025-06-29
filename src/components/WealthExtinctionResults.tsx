@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, TrendingDown, TrendingUp, Users, Heart, Brain, Shield, Clock, ArrowDown, ArrowUp, Target, Zap } from 'lucide-react';
+import { Heart, ArrowUp, Shield, Clock, AlertTriangle, TrendingDown, Users, School, Home, Briefcase } from 'lucide-react';
+import { useCurrency } from '../contexts/CurrencyContext';
+import { formatCurrency } from '../utils/currencyUtils';
+import InteractiveWealthTimeline from './InteractiveWealthTimeline';
+import ComplexityScore from './ComplexityScore';
+import TailRiskAnalysis from './TailRiskAnalysis';
+import { useAuth } from '../contexts/AuthContext';
+import { getCalculationJobStatus, getCalculationResults, queueComprehensiveCalculation } from '../api/tiered-calculation-api';
 
 interface WealthProjection {
   year: number;
@@ -49,6 +56,13 @@ interface CalculationResults {
     mostLikely: { extinctionYear: number; probability: number };
     worstCase: { extinctionYear: number; probability: number };
   };
+  extremeValueAnalysis?: any; // Added EVT results
+  calculationId?: string; // Added calculation ID
+  isBasic?: boolean; // Added flag for basic calculation
+  upgradeIncentives?: {
+    comprehensiveAnalysisValue: string;
+    additionalInsights: string[];
+  };
 }
 
 interface UserProfile {
@@ -72,17 +86,207 @@ const WealthExtinctionResults: React.FC<{
     hasResults: !!results,
     hasUserProfile: !!userProfile,
     resultsKeys: results ? Object.keys(results) : [],
-    userProfileKeys: userProfile ? Object.keys(userProfile) : []
+    userProfileKeys: userProfile ? Object.keys(userProfile) : [],
+    hasExtremeValueAnalysis: !!results?.extremeValueAnalysis,
+    isBasic: results?.isBasic,
+    calculationId: results?.calculationId
   });
+
+  const [currentPage, setCurrentPage] = useState<'emergency' | 'testimonial' | 'stats' | 'detailed'>('emergency');
+  const [showSwipeIndicator, setShowSwipeIndicator] = useState(true);
+  const [activeTab, setActiveTab] = useState<'timeline' | 'destroyers' | 'impact' | 'complexity' | 'tailrisk'>('timeline');
+  const { currencyInfo } = useCurrency();
+  const { user } = useAuth();
+  
+  // State for comprehensive calculation
+  const [isComprehensiveAvailable, setIsComprehensiveAvailable] = useState(false);
+  const [isComprehensiveQueued, setIsComprehensiveQueued] = useState(false);
+  const [isComprehensiveLoading, setIsComprehensiveLoading] = useState(false);
+  const [comprehensiveJobId, setComprehensiveJobId] = useState<string | null>(null);
+  const [comprehensiveResults, setComprehensiveResults] = useState<CalculationResults | null>(null);
+  const [jobStatus, setJobStatus] = useState<any | null>(null);
+  const [jobProgress, setJobProgress] = useState(0);
+
+  // Hide swipe indicator after 5 seconds
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSwipeIndicator(false);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Check if user is logged in and results are basic
+  useEffect(() => {
+    if (user && results?.isBasic && results?.calculationId) {
+      setIsComprehensiveAvailable(true);
+    }
+  }, [user, results]);
+
+  // Poll for job status if comprehensive calculation is queued
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+    
+    if (isComprehensiveQueued && comprehensiveJobId) {
+      intervalId = setInterval(async () => {
+        try {
+          const status = await getCalculationJobStatus(comprehensiveJobId);
+          
+          if (status) {
+            setJobStatus(status);
+            setJobProgress(status.progress);
+            
+            if (status.status === 'completed') {
+              // Get comprehensive results
+              const results = await getCalculationResults(comprehensiveJobId);
+              
+              if (results) {
+                setComprehensiveResults(results);
+                setIsComprehensiveLoading(false);
+                setIsComprehensiveQueued(false);
+                clearInterval(intervalId);
+              }
+            } else if (status.status === 'failed') {
+              setIsComprehensiveLoading(false);
+              setIsComprehensiveQueued(false);
+              clearInterval(intervalId);
+            }
+          }
+        } catch (error) {
+          console.error('Error polling job status:', error);
+        }
+      }, 5000); // Poll every 5 seconds
+    }
+    
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [isComprehensiveQueued, comprehensiveJobId]);
+
+  // Calculate user age at extinction
+  const ageAtExtinction = userProfile.age + results.yearsRemaining;
+
+  // Handle swipe gestures
+  const handleSwipe = (direction: 'up' | 'down') => {
+    if (direction === 'up') {
+      if (currentPage === 'emergency') setCurrentPage('testimonial');
+      else if (currentPage === 'testimonial') setCurrentPage('stats');
+      else if (currentPage === 'stats') setCurrentPage('detailed');
+      else if (currentPage === 'detailed') onGetProtectionPlan(); // Proceed to next page on swipe up from last page
+    } else if (direction === 'down') {
+      if (currentPage === 'detailed') setCurrentPage('stats');
+      else if (currentPage === 'stats') setCurrentPage('testimonial');
+      else if (currentPage === 'testimonial') setCurrentPage('emergency');
+    }
+  };
+
+  // Handle click anywhere on the screen
+  const handleScreenClick = () => {
+    if (currentPage === 'emergency') {
+      setCurrentPage('testimonial');
+    } else if (currentPage === 'testimonial') {
+      setCurrentPage('stats');
+    } else if (currentPage === 'stats') {
+      setCurrentPage('detailed');
+    } else if (currentPage === 'detailed') {
+      onGetProtectionPlan();
+    }
+  };
+
+  // Queue comprehensive calculation
+  const handleQueueComprehensiveCalculation = async () => {
+    if (!user || !results?.calculationId) {
+      return;
+    }
+    
+    setIsComprehensiveLoading(true);
+    
+    try {
+      // In a real implementation, this would queue a comprehensive calculation
+      // For now, we'll just simulate it
+      console.log('🔄 Queueing comprehensive calculation for user:', user.id);
+      console.log('🔄 Using calculation ID:', results.calculationId);
+      
+      // Simulate queueing
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Set job ID
+      const jobId = uuidv4();
+      setComprehensiveJobId(jobId);
+      setIsComprehensiveQueued(true);
+      
+      // Simulate job status updates
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += 10;
+        setJobProgress(progress);
+        
+        if (progress >= 100) {
+          clearInterval(interval);
+          setIsComprehensiveLoading(false);
+          setIsComprehensiveQueued(false);
+          
+          // Set comprehensive results (same as basic for demo)
+          setComprehensiveResults(results);
+        }
+      }, 1000);
+    } catch (error) {
+      console.error('Error queueing comprehensive calculation:', error);
+      setIsComprehensiveLoading(false);
+    }
+  };
+
+  // Generate a UUID (for demo purposes)
+  const uuidv4 = () => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  };
+
+  // Detect swipe gestures
+  useEffect(() => {
+    let touchStartY = 0;
+    
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartY = e.touches[0].clientY;
+    };
+    
+    const handleTouchEnd = (e: TouchEvent) => {
+      const touchEndY = e.changedTouches[0].clientY;
+      const diff = touchStartY - touchEndY;
+      
+      // Threshold of 50px for swipe
+      if (Math.abs(diff) > 50) {
+        if (diff > 0) {
+          // Swipe up
+          handleSwipe('up');
+        } else {
+          // Swipe down
+          handleSwipe('down');
+        }
+      }
+    };
+    
+    document.addEventListener('touchstart', handleTouchStart, { passive: true });
+    document.addEventListener('touchend', handleTouchEnd, { passive: true });
+    
+    return () => {
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [currentPage]);
 
   // Safety check for required data
   if (!results || !userProfile) {
-    console.error('❌ WealthExtinctionResults: Missing required props');
+    console.error('❌ Missing required data for results screen:');
     console.error('  - results:', results);
     console.error('  - userProfile:', userProfile);
     
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center p-6">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">No Results Available</h2>
           <p className="text-gray-600 mb-6">Please complete the calculator first.</p>
@@ -96,550 +300,670 @@ const WealthExtinctionResults: React.FC<{
     );
   }
 
-  const [currentView, setCurrentView] = useState<'shock' | 'timeline' | 'family' | 'complexity' | 'protection'>('shock');
-  const [animationPhase, setAnimationPhase] = useState(0);
-  const [countdownValue, setCountdownValue] = useState(results.extinctionYear);
-
-  useEffect(() => {
-    // Animated countdown effect
-    let startValue = 2100;
-    const targetValue = results.extinctionYear;
-    const duration = 3000; // 3 seconds
-    const increment = (startValue - targetValue) / (duration / 50);
-
-    const timer = setInterval(() => {
-      startValue -= increment;
-      if (startValue <= targetValue) {
-        setCountdownValue(targetValue);
-        clearInterval(timer);
-        setAnimationPhase(1);
-      } else {
-        setCountdownValue(Math.round(startValue));
-      }
-    }, 50);
-
-    return () => clearInterval(timer);
-  }, [results.extinctionYear]);
-
-  const renderShockRevelation = () => (
-    <div className="space-y-8">
-      {/* Main Extinction Display */}
-      <div className="text-center space-y-6">
-        <div className="inline-flex items-center gap-3 px-6 py-3 bg-red-50 border-2 border-red-200 rounded-full">
-          <AlertTriangle className="w-6 h-6 text-red-600" />
-          <span className="text-red-800 font-semibold">WEALTH EXTINCTION ANALYSIS COMPLETE</span>
+  // Emergency page (first screen)
+  const renderEmergencyPage = () => (
+    <div className="min-h-screen bg-white flex flex-col" onClick={handleScreenClick}>
+      <div className="text-center pt-6">
+        <h1 className="text-purple-600 text-xl font-medium">FamilyPe</h1>
+      </div>
+      
+      <div className="flex flex-col items-center justify-center text-center px-6 pt-10 pb-6 flex-grow">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center">
+            <span className="text-black">⚠️</span>
+          </div>
+          <h2 className="text-4xl font-black uppercase">FAMILY</h2>
         </div>
-
-        <div className="relative">
-          <div className="text-6xl md:text-8xl font-bold text-red-600 mb-4 animate-pulse">
-            {countdownValue}
-          </div>
-          <div className="text-2xl md:text-3xl font-semibold text-gray-800 mb-2">
-            Your Family Wealth Dies
-          </div>
-          <div className="text-lg text-gray-600">
-            {results.yearsRemaining} years from today
-          </div>
+        <h2 className="text-4xl font-black uppercase mb-16">EMERGENCY</h2>
+        
+        <div className="text-7xl font-bold mb-6">{results.extinctionYear}</div>
+        
+        <h3 className="text-4xl font-bold mb-4">Your Wealth Dies</h3>
+        
+        <p className="text-xl mb-16">{results.yearsRemaining} years from today</p>
+        
+        <div className="w-full bg-gradient-to-b from-orange-500 to-amber-700 rounded-2xl p-6 text-white">
+          <h3 className="text-3xl font-bold mb-6">When this happens</h3>
+          <p className="text-xl mb-3">You will be {ageAtExtinction} years</p>
+          <p className="text-xl mb-3">Your children will inherit {formatCurrency(results.childrenInheritance, currencyInfo)}</p>
         </div>
-
-        {animationPhase >= 1 && (
-          <div className="animate-fade-in bg-gradient-to-r from-orange-50 to-red-50 p-6 rounded-2xl border border-orange-200 max-w-2xl mx-auto">
-            <div className="text-orange-800 space-y-2">
-              <p className="font-semibold">When wealth extinction occurs:</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="font-medium">You'll be:</span> {userProfile.age + results.yearsRemaining} years old
-                </div>
-                <div>
-                  <span className="font-medium">Your children inherit:</span> ₹{(results.childrenInheritance / 100000).toFixed(1)}L each
-                </div>
-                <div>
-                  <span className="font-medium">Your grandchildren inherit:</span> ₹{(results.grandchildrenInheritance / 100000).toFixed(1)}L
-                </div>
-                <div>
-                  <span className="font-medium">Family legacy:</span> Extinct
-                </div>
-              </div>
-            </div>
+        
+        {/* Basic calculation badge */}
+        {results.isBasic && user && (
+          <div className="mt-6 bg-purple-50 rounded-xl p-4 border border-purple-200">
+            <p className="text-purple-800 font-medium mb-2">Basic calculation completed</p>
+            <p className="text-purple-600 text-sm mb-3">
+              Upgrade to comprehensive analysis for more accurate results and detailed insights.
+            </p>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleQueueComprehensiveCalculation();
+              }}
+              disabled={isComprehensiveLoading || isComprehensiveQueued}
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isComprehensiveLoading ? 'Processing...' : 
+               isComprehensiveQueued ? `Calculating (${jobProgress}%)` : 
+               'Get Comprehensive Analysis'}
+            </button>
           </div>
         )}
       </div>
-
-      {/* Monte Carlo Results */}
-      {animationPhase >= 1 && (
-        <div className="animate-slide-in bg-white p-6 rounded-2xl border border-gray-200 shadow-lg">
-          <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Brain className="w-6 h-6 text-purple-600" />
-            Monte Carlo Analysis (10,000 Simulations)
-          </h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center p-4 bg-green-50 rounded-xl border border-green-200">
-              <div className="text-2xl font-bold text-green-600">{results.scenarioAnalysis.bestCase.extinctionYear}</div>
-              <div className="text-sm text-green-700">Best Case (5%)</div>
-              <div className="text-xs text-green-600 mt-1">Everything goes perfectly</div>
-            </div>
-            
-            <div className="text-center p-4 bg-blue-50 rounded-xl border border-blue-200">
-              <div className="text-2xl font-bold text-blue-600">{results.scenarioAnalysis.mostLikely.extinctionYear}</div>
-              <div className="text-sm text-blue-700">Most Likely (50%)</div>
-              <div className="text-xs text-blue-600 mt-1">Normal life events</div>
-            </div>
-            
-            <div className="text-center p-4 bg-red-50 rounded-xl border border-red-200">
-              <div className="text-2xl font-bold text-red-600">{results.scenarioAnalysis.worstCase.extinctionYear}</div>
-              <div className="text-sm text-red-700">Crisis (5%)</div>
-              <div className="text-xs text-red-600 mt-1">Multiple major events</div>
-            </div>
-          </div>
-
-          <div className="mt-4 p-4 bg-yellow-50 rounded-xl border border-yellow-200">
-            <p className="text-yellow-800 font-medium text-center">
-              ⚠️ Your timeline varies by {results.scenarioAnalysis.bestCase.extinctionYear - results.scenarioAnalysis.worstCase.extinctionYear} years depending on life events and decisions
-            </p>
+      
+      {showSwipeIndicator && (
+        <div className="fixed bottom-6 left-0 right-0 flex justify-center animate-swipe-up">
+          <div className="flex flex-col items-center text-gray-500">
+            <span className="text-xl">👆</span>
+            <p className="text-sm">Swipe up to see how</p>
           </div>
         </div>
       )}
     </div>
   );
 
-  const renderTimelineVisualization = () => (
-    <div className="space-y-8">
-      <div className="text-center">
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">Your Wealth Timeline</h2>
-        <p className="text-lg text-gray-600">How your family's wealth evolves over time</p>
+  // Testimonial page (second screen)
+  const renderTestimonialPage = () => (
+    <div className="min-h-screen bg-white flex flex-col" onClick={handleScreenClick}>
+      <div className="flex items-center justify-center gap-2 pt-6 pb-4">
+        <Heart className="w-8 h-8 text-red-500 fill-red-500" />
+        <h2 className="text-4xl font-bold">You're Not Alone</h2>
       </div>
-
-      {/* Interactive Timeline */}
-      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-lg">
-        <div className="space-y-4">
-          {results.topWealthDestroyers.map((destroyer, index) => (
-            <div key={index} className="flex items-center justify-between p-4 bg-red-50 rounded-xl border border-red-200">
-              <div className="flex-1">
-                <h4 className="font-semibold text-red-800">{destroyer.factor}</h4>
-                <p className="text-red-700 text-sm mt-1">{destroyer.description}</p>
+      
+      <div className="px-6 py-4 flex-grow flex flex-col">
+        <div className="bg-gradient-to-br from-green-100 to-teal-100 rounded-2xl overflow-hidden mb-auto">
+          <div className="relative p-6">
+            <div className="absolute top-10 right-10 w-32 h-32 bg-orange-200 rounded-full opacity-70"></div>
+            <div className="relative z-10">
+              <div className="w-32 h-32 bg-teal-800 rounded-full mb-6 overflow-hidden">
+                {/* Placeholder for avatar */}
               </div>
-              <div className="text-right ml-4">
-                <div className="text-lg font-bold text-red-600">-₹{(destroyer.impact / 100000).toFixed(1)}L</div>
-                <div className="text-xs text-red-700">Lifetime Impact</div>
+              
+              <blockquote className="text-3xl font-bold text-white mb-6">
+                I thought I was doing everything right. Turns out I was setting my kids up for financial failure.
+              </blockquote>
+              
+              <div className="text-white">
+                <p className="text-xl">— Rajesh, Mumbai</p>
+                <p className="text-lg">Father of 2, Age 38</p>
               </div>
             </div>
-          ))}
+          </div>
         </div>
-      </div>
-
-      {/* Complexity Drivers */}
-      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-lg">
-        <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <Zap className="w-6 h-6 text-orange-500" />
-          Primary Complexity Drivers
-        </h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {results.complexityAnalysis.primaryComplexityDrivers.map((driver, index) => (
-            <div key={index} className="p-4 bg-orange-50 rounded-xl border border-orange-200">
-              <p className="text-orange-800 font-medium">{driver}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Coordination Opportunities */}
-      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-lg">
-        <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <Target className="w-6 h-6 text-green-500" />
-          Coordination Opportunities
-        </h3>
-        
-        <div className="space-y-3">
-          {results.complexityAnalysis.coordinationOpportunities.map((opportunity, index) => (
-            <div key={index} className="flex items-start gap-3 p-4 bg-green-50 rounded-xl border border-green-200">
-              <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-white text-xs font-bold">{index + 1}</span>
-              </div>
-              <p className="text-green-800 font-medium">{opportunity}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-6 p-4 bg-green-100 rounded-xl border border-green-300">
-          <p className="text-green-800 font-bold text-center">
-            💰 Total Optimization Potential: ₹{(results.complexityAnalysis.optimizationPotential / 100000).toFixed(1)}L
+        <div className="mt-auto">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-6 h-6 bg-green-500 rounded-sm"></div>
+            <p className="text-xl font-bold">70% of families face this</p>
+          </div>
+          
+          <p className="text-xl font-bold text-center mb-6">
+            But the 30% who plan ahead extend their timeline by:
           </p>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderFamilyImpact = () => (
-    <div className="space-y-8">
-      <div className="text-center">
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">Generational Impact Analysis</h2>
-        <p className="text-lg text-gray-600">How wealth extinction affects each generation</p>
-      </div>
-
-      {/* Generation Comparison */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Generation 1 - You */}
-        <div className="bg-gradient-to-b from-green-50 to-green-100 p-6 rounded-2xl border border-green-200">
-          <div className="text-center space-y-4">
-            <div className="text-4xl">👨‍👩‍👧‍👦</div>
-            <h3 className="font-bold text-green-800">Generation 1 (You)</h3>
-            <div className="space-y-2">
-              <div className="text-2xl font-bold text-green-600">₹{(userProfile.netWorth / 100000).toFixed(1)}L</div>
-              <p className="text-green-700 text-sm">Built from scratch</p>
-              <div className="bg-green-200 rounded-full px-3 py-1 text-xs font-medium text-green-800">
-                Wealth Builder
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Generation 2 - Children */}
-        <div className="bg-gradient-to-b from-yellow-50 to-yellow-100 p-6 rounded-2xl border border-yellow-200">
-          <div className="text-center space-y-4">
-            <div className="text-4xl">👧👦</div>
-            <h3 className="font-bold text-yellow-800">Generation 2 (Children)</h3>
-            <div className="space-y-2">
-              <div className="text-2xl font-bold text-yellow-600">₹{(results.childrenInheritance / 100000).toFixed(1)}L</div>
-              <p className="text-yellow-700 text-sm">Each child inherits</p>
-              <div className="bg-yellow-200 rounded-full px-3 py-1 text-xs font-medium text-yellow-800">
-                {Math.round((results.childrenInheritance / userProfile.netWorth) * 100)}% of your wealth
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Generation 3 - Grandchildren */}
-        <div className="bg-gradient-to-b from-red-50 to-red-100 p-6 rounded-2xl border border-red-200">
-          <div className="text-center space-y-4">
-            <div className="text-4xl">👶👶</div>
-            <h3 className="font-bold text-red-800">Generation 3 (Grandchildren)</h3>
-            <div className="space-y-2">
-              <div className="text-2xl font-bold text-red-600">₹0</div>
-              <p className="text-red-700 text-sm">Complete extinction</p>
-              <div className="bg-red-200 rounded-full px-3 py-1 text-xs font-medium text-red-800">
-                Start from zero
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Family Crisis Scenarios */}
-      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-lg">
-        <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <Heart className="w-6 h-6 text-red-500" />
-          Real Family Impact
-        </h3>
-        
-        <div className="space-y-4">
-          <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
-            <h4 className="font-semibold text-blue-800 mb-2">Your Children's Reality</h4>
-            <p className="text-blue-700 text-sm">
-              "Dad, why can't you help with our children's education like grandpa helped us?"
-            </p>
+          
+          <div className="flex items-center justify-center gap-4 mb-6">
+            <div className="text-yellow-500 text-3xl">⚡</div>
+            <div className="text-5xl font-black">8.3 YEARS</div>
+            <div className="text-yellow-500 text-3xl">⚡</div>
           </div>
           
-          <div className="p-4 bg-orange-50 rounded-xl border border-orange-200">
-            <h4 className="font-semibold text-orange-800 mb-2">Your Grandchildren's Question</h4>
-            <p className="text-orange-700 text-sm">
-              "Why doesn't our family have money for college like other families?"
-            </p>
-          </div>
-          
-          <div className="p-4 bg-red-50 rounded-xl border border-red-200">
-            <h4 className="font-semibold text-red-800 mb-2">The Legacy You Leave</h4>
-            <p className="text-red-700 text-sm">
-              Your life's work supporting exactly 2 generations before complete extinction.
-            </p>
+          <div className="w-full flex items-center justify-center gap-2 text-xl font-medium text-yellow-600 py-3">
+            <span className="text-xl">👆</span>
+            See how they do it
           </div>
         </div>
       </div>
     </div>
   );
 
-  const renderComplexityAnalysis = () => (
-    <div className="space-y-8">
-      <div className="text-center">
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">Your Complexity Web</h2>
-        <p className="text-lg text-gray-600">247 interconnected variables affecting your wealth timeline</p>
+  // Stats page (third screen)
+  const renderStatsPage = () => (
+    <div className="min-h-screen bg-white flex flex-col" onClick={handleScreenClick}>
+      <div className="flex items-center justify-center gap-2 pt-6 pb-4">
+        <Clock className="w-8 h-8 text-purple-600" />
+        <h2 className="text-4xl font-bold">Your Timeline</h2>
       </div>
-
-      {/* Complexity Score */}
-      <div className="bg-gradient-to-r from-purple-50 to-indigo-50 p-6 rounded-2xl border border-purple-200">
-        <div className="text-center space-y-4">
-          <div className="text-6xl font-bold text-purple-600">
-            {results.complexityAnalysis.score.toFixed(1)}/10
-          </div>
-          <h3 className="text-xl font-semibold text-purple-800">Family Wealth Complexity Score</h3>
-          <p className="text-purple-700">
-            {results.complexityAnalysis.score < 3 ? 'Low complexity - manageable with basic planning' :
-             results.complexityAnalysis.score < 6 ? 'Moderate complexity - requires systematic approach' :
-             results.complexityAnalysis.score < 8 ? 'High complexity - professional coordination recommended' :
-             'Maximum complexity - platform-level management essential'}
-          </p>
-        </div>
-      </div>
-
-      {/* Top Wealth Destroyers */}
-      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-lg">
-        <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <TrendingDown className="w-6 h-6 text-red-500" />
-          Top Wealth Destroyers for Your Family
-        </h3>
-        
-        <div className="space-y-4">
-          {results.topWealthDestroyers.map((destroyer, index) => (
-            <div key={index} className="flex items-center justify-between p-4 bg-red-50 rounded-xl border border-red-200">
-              <div className="flex-1">
-                <h4 className="font-semibold text-red-800">{destroyer.factor}</h4>
-                <p className="text-red-700 text-sm mt-1">{destroyer.description}</p>
-              </div>
-              <div className="text-right ml-4">
-                <div className="text-lg font-bold text-red-600">-₹{(destroyer.impact / 100000).toFixed(1)}L</div>
-                <div className="text-xs text-red-700">Lifetime Impact</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderProtectionStrategy = () => (
-    <div className="space-y-8">
-      <div className="text-center">
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">Protected vs Unprotected Timeline</h2>
-        <p className="text-lg text-gray-600">What systematic protection could achieve for your family</p>
-      </div>
-
-      {/* Before vs After Comparison */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Current Path */}
-        <div className="bg-gradient-to-b from-red-50 to-red-100 p-6 rounded-2xl border border-red-200">
-          <div className="text-center space-y-4">
-            <div className="text-4xl">😰</div>
-            <h3 className="font-bold text-red-800">Current Path</h3>
-            <div className="space-y-3">
-              <div className="text-3xl font-bold text-red-600">{results.extinctionYear}</div>
-              <p className="text-red-700">Wealth extinction year</p>
-              <div className="space-y-2 text-sm text-red-700">
-                <div>• Children inherit ₹{(results.childrenInheritance / 100000).toFixed(1)}L each</div>
-                <div>• Grandchildren inherit ₹0</div>
-                <div>• Family legacy ends</div>
-                <div>• Coordination failures likely</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Protected Path */}
-        <div className="bg-gradient-to-b from-green-50 to-green-100 p-6 rounded-2xl border border-green-200">
-          <div className="text-center space-y-4">
-            <div className="text-4xl">🛡️</div>
-            <h3 className="font-bold text-green-800">Protected Path</h3>
-            <div className="space-y-3">
-              <div className="text-3xl font-bold text-green-600">{results.protectedScenario.extinctionYear}</div>
-              <p className="text-green-700">Extended timeline</p>
-              <div className="space-y-2 text-sm text-green-700">
-                <div>• +{results.protectedScenario.additionalYears} years extension</div>
-                <div>• Grandchildren inherit ₹{(results.protectedScenario.grandchildrenInheritance / 100000).toFixed(1)}L</div>
-                <div>• Multi-generational wealth</div>
-                <div>• Systematic optimization</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Protection Improvements */}
-      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-lg">
-        <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <Shield className="w-6 h-6 text-blue-500" />
-          How Protection Extends Your Timeline
-        </h3>
-        
-        <div className="space-y-4">
-          {results.protectedScenario.improvements.map((improvement, index) => (
-            <div key={index} className="flex items-start gap-3 p-4 bg-blue-50 rounded-xl border border-blue-200">
-              <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                <ArrowUp className="w-4 h-4 text-white" />
-              </div>
-              <p className="text-blue-800 font-medium">{improvement}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* The Overwhelming Action Plan */}
-      <div className="bg-gradient-to-r from-purple-50 to-indigo-50 p-6 rounded-2xl border border-purple-200">
-        <h3 className="text-xl font-bold text-purple-900 mb-4 flex items-center gap-2">
-          <Brain className="w-6 h-6 text-purple-600" />
-          Your DIY Action Plan (47 Steps)
-        </h3>
-        
-        <div className="space-y-4">
-          <div className="p-4 bg-white rounded-xl border border-purple-200">
-            <h4 className="font-semibold text-purple-800 mb-2">Immediate Actions (Next 30 Days):</h4>
-            <ul className="text-sm text-purple-700 space-y-1">
-              <li>• Update will to reflect current family situation</li>
-              <li>• Coordinate parent care assessment with siblings</li>
-              <li>• Research children's education financial aid options</li>
-              <li>• Review and update all insurance policies</li>
-              <li>• Rebalance portfolio for changing risk profile</li>
-              <li>• Set up sibling coordination system</li>
-              <li>• Create parent care emergency fund</li>
-              <li>• ... and 40 more critical actions</li>
-            </ul>
-          </div>
-
-          <div className="p-4 bg-white rounded-xl border border-purple-200">
-            <h4 className="font-semibold text-purple-800 mb-2">Ongoing Monitoring (Next 15 Years):</h4>
-            <ul className="text-sm text-purple-700 space-y-1">
-              <li>• 47 quarterly investment rebalancing decisions</li>
-              <li>• 23 family coordination checkpoints</li>
-              <li>• 18 parent care transition management points</li>
-              <li>• 31 education funding optimization windows</li>
-              <li>• 52 career decision optimization moments</li>
-              <li>• 156 market timing and emotional decision points</li>
-            </ul>
-          </div>
-
-          <div className="p-4 bg-red-50 rounded-xl border border-red-200">
-            <h4 className="font-semibold text-red-800 mb-2">⚠️ DIY Attempt Warning:</h4>
-            <div className="grid grid-cols-2 gap-4 text-sm text-red-700">
-              <div>❌ 78% miss critical optimization opportunities</div>
-              <div>❌ 71% experience coordination failures</div>
-              <div>❌ 83% underestimate emotional decision impact</div>
-              <div>❌ Average timeline reduction: 8.7 years</div>
-              <div>❌ Average preventable wealth loss: ₹2.8 Cr</div>
-              <div>❌ Family stress and conflict increase</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Platform Value Proposition */}
-      <div className="bg-gradient-to-r from-green-50 to-blue-50 p-8 rounded-2xl border border-green-200 shadow-lg">
-        <div className="text-center space-y-6">
-          <h3 className="text-2xl font-bold text-gray-900">Platform-Managed Families Outperform by 8.3 Years</h3>
+      
+      <div className="px-6 py-4 flex-grow flex flex-col">
+        <div className="bg-gradient-to-br from-purple-100 to-indigo-100 rounded-2xl p-6 mb-6">
+          <h3 className="text-2xl font-bold text-purple-900 mb-4">Complexity Score: {results.complexityAnalysis?.score?.toFixed(1) || 'N/A'}</h3>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-green-600">₹12,000</div>
-              <div className="text-sm text-green-700">Monthly Investment</div>
+          <div className="space-y-4">
+            <div>
+              <h4 className="font-semibold text-purple-800 mb-2">Primary Complexity Drivers:</h4>
+              <ul className="list-disc list-inside text-purple-700 space-y-1">
+                {(results.complexityAnalysis?.primaryComplexityDrivers || []).map((driver, index) => (
+                  <li key={index}>{driver}</li>
+                ))}
+              </ul>
+              {(!results.complexityAnalysis?.primaryComplexityDrivers || results.complexityAnalysis.primaryComplexityDrivers.length === 0) && (
+                <p className="text-purple-600 text-sm">No specific complexity drivers identified.</p>
+              )}
             </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-blue-600">+8.3 years</div>
-              <div className="text-sm text-blue-700">Average Timeline Extension</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-purple-600">4,200%</div>
-              <div className="text-sm text-purple-700">ROI</div>
+            
+            <div>
+              <h4 className="font-semibold text-purple-800 mb-2">Coordination Opportunities:</h4>
+              <ul className="list-disc list-inside text-purple-700 space-y-1">
+                {(results.complexityAnalysis?.coordinationOpportunities || []).map((opportunity, index) => (
+                  <li key={index}>{typeof opportunity === 'string' ? opportunity : opportunity.opportunity}</li>
+                ))}
+              </ul>
+              {(!results.complexityAnalysis?.coordinationOpportunities || results.complexityAnalysis.coordinationOpportunities.length === 0) && (
+                <p className="text-purple-600 text-sm">No specific coordination opportunities identified.</p>
+              )}
             </div>
           </div>
-
+        </div>
+        
+        <div className="bg-gradient-to-br from-blue-100 to-cyan-100 rounded-2xl p-6 mb-6">
+          <h3 className="text-2xl font-bold text-blue-900 mb-4">Critical Decisions Coming</h3>
+          
           <div className="space-y-3">
-            <h4 className="font-semibold text-gray-800">What our platform monitors that you can't:</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-              <div className="flex items-center gap-2 text-green-700">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                247 interconnected variables affecting your timeline
+            <div className="bg-white bg-opacity-50 rounded-xl p-3">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-blue-200 rounded-full flex items-center justify-center">
+                  <School className="w-5 h-5 text-blue-700" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-blue-900">Education Planning</h4>
+                  <p className="text-sm text-blue-700">2027 - College fund decisions for {results.familyImpact?.inheritance?.children?.[0]?.name || 'your child'}</p>
+                </div>
               </div>
-              <div className="flex items-center gap-2 text-green-700">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                Real-time optimization opportunities
+            </div>
+            
+            <div className="bg-white bg-opacity-50 rounded-xl p-3">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-blue-200 rounded-full flex items-center justify-center">
+                  <Heart className="w-5 h-5 text-blue-700" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-blue-900">Parent Care</h4>
+                  <p className="text-sm text-blue-700">2026-2028 - Potential care needs for parents</p>
+                </div>
               </div>
-              <div className="flex items-center gap-2 text-green-700">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                Family coordination facilitation
-              </div>
-              <div className="flex items-center gap-2 text-green-700">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                Professional network activation
-              </div>
-              <div className="flex items-center gap-2 text-green-700">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                Continuous plan adjustment as life changes
-              </div>
-              <div className="flex items-center gap-2 text-green-700">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                Crisis scenario management
+            </div>
+            
+            <div className="bg-white bg-opacity-50 rounded-xl p-3">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-blue-200 rounded-full flex items-center justify-center">
+                  <Home className="w-5 h-5 text-blue-700" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-blue-900">Housing Decision</h4>
+                  <p className="text-sm text-blue-700">2030 - Home upgrade or downsize</p>
+                </div>
               </div>
             </div>
           </div>
+        </div>
+        
+        <div className="bg-gradient-to-br from-red-100 to-orange-100 rounded-2xl p-6">
+          <h3 className="text-2xl font-bold text-red-900 mb-4">Stress Test: 2027 Perfect Storm</h3>
+          
+          <div className="space-y-2">
+            <p className="text-red-800">What happens if these events occur simultaneously:</p>
+            <ul className="list-disc list-inside text-red-700 space-y-1">
+              <li>Market crash (-30%)</li>
+              <li>Parent health emergency</li>
+              <li>Education costs spike</li>
+            </ul>
+            
+            <div className="bg-white bg-opacity-50 rounded-xl p-3 mt-4">
+              <p className="font-semibold text-red-900">Wealth timeline reduced by: 8 years</p>
+              <p className="text-sm text-red-700">New extinction year: {results.extinctionYear - 8}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="w-full flex items-center justify-center gap-2 text-xl font-medium text-purple-600 py-3 mt-6">
+          <span className="text-xl">👆</span>
+          See detailed analysis
+        </div>
+      </div>
+    </div>
+  );
 
+  // Detailed analysis page (fourth screen)
+  const renderDetailedPage = () => (
+    <div className="min-h-screen bg-white">
+      {/* Header */}
+      <div className="bg-red-50 border-b-2 border-red-200 px-6 py-4">
+        <div className="flex items-center gap-2 mb-2">
+          <AlertTriangle className="w-5 h-5 text-red-500" />
+          <span className="text-red-600 font-bold">WEALTH EXTINCTION ALERT</span>
+        </div>
+        <p className="text-sm text-red-700">
+          Your family wealth dies in {results.extinctionYear} • Children inherit {formatCurrency(results.childrenInheritance, currencyInfo)} • Grandchildren inherit {formatCurrency(results.grandchildrenInheritance, currencyInfo)}
+        </p>
+        
+        {/* Basic calculation badge */}
+        {results.isBasic && user && (
+          <div className="mt-2 flex items-center gap-2">
+            <span className="px-2 py-0.5 bg-purple-100 text-purple-800 text-xs font-medium rounded">Basic Analysis</span>
+            {isComprehensiveLoading || isComprehensiveQueued ? (
+              <span className="text-xs text-purple-600">
+                {isComprehensiveQueued ? `Comprehensive analysis in progress (${jobProgress}%)` : 'Processing...'}
+              </span>
+            ) : (
+              <button
+                onClick={handleQueueComprehensiveCalculation}
+                className="text-xs text-purple-600 hover:text-purple-800 underline"
+              >
+                Upgrade to comprehensive analysis
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="px-6 pt-4 pb-2 border-b overflow-x-auto">
+        <div className="flex space-x-4 min-w-max">
+          <button
+            onClick={() => setActiveTab('timeline')}
+            className={`pb-2 px-1 whitespace-nowrap ${activeTab === 'timeline' ? 'border-b-2 border-purple-600 text-purple-600 font-medium' : 'text-gray-500'}`}
+            aria-label="View timeline tab"
+          >
+            Timeline
+          </button>
+          <button
+            onClick={() => setActiveTab('destroyers')}
+            className={`pb-2 px-1 whitespace-nowrap ${activeTab === 'destroyers' ? 'border-b-2 border-purple-600 text-purple-600 font-medium' : 'text-gray-500'}`}
+            aria-label="View wealth destroyers tab"
+          >
+            Wealth Destroyers
+          </button>
+          <button
+            onClick={() => setActiveTab('impact')}
+            className={`pb-2 px-1 whitespace-nowrap ${activeTab === 'impact' ? 'border-b-2 border-purple-600 text-purple-600 font-medium' : 'text-gray-500'}`}
+            aria-label="View family impact tab"
+          >
+            Family Impact
+          </button>
+          <button
+            onClick={() => setActiveTab('complexity')}
+            className={`pb-2 px-1 whitespace-nowrap ${activeTab === 'complexity' ? 'border-b-2 border-purple-600 text-purple-600 font-medium' : 'text-gray-500'}`}
+            aria-label="View complexity analysis tab"
+          >
+            Complexity
+          </button>
+          <button
+            onClick={() => setActiveTab('tailrisk')}
+            className={`pb-2 px-1 whitespace-nowrap ${activeTab === 'tailrisk' ? 'border-b-2 border-purple-600 text-purple-600 font-medium' : 'text-gray-500'}`}
+            aria-label="View tail risk analysis tab"
+          >
+            Tail Risk
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="px-6 py-8">
+        {activeTab === 'timeline' && (
+          <div>
+            {/* Interactive Timeline */}
+            <InteractiveWealthTimeline
+              projections={results.projections || []}
+              extinctionYear={results.extinctionYear}
+              currentWealth={userProfile.netWorth}
+              protectedScenario={{
+                extinctionYear: results.protectedScenario?.extinctionYear || results.extinctionYear + 5,
+                projections: (results.projections || []).map((p: any) => ({
+                  ...p,
+                  wealth: p.wealth * 1.3 // Simulate protected scenario
+                }))
+              }}
+            />
+            
+            {/* Scenario Analysis */}
+            <div className="mt-8">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Scenario Analysis</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-green-50 rounded-2xl p-4 text-center">
+                  <h4 className="font-bold text-green-800 mb-2">Best Case</h4>
+                  <p className="text-sm text-green-600">Year: {results.scenarioAnalysis?.bestCase?.extinctionYear || (results.extinctionYear + 10)}</p>
+                  <p className="text-sm text-green-600">Probability: {((results.scenarioAnalysis?.bestCase?.probability || 0.1) * 100).toFixed(0)}%</p>
+                </div>
+                <div className="bg-yellow-50 rounded-2xl p-4 text-center">
+                  <h4 className="font-bold text-yellow-800 mb-2">Most Likely</h4>
+                  <p className="text-sm text-yellow-600">Year: {results.scenarioAnalysis?.mostLikely?.extinctionYear || results.extinctionYear}</p>
+                  <p className="text-sm text-yellow-600">Probability: {((results.scenarioAnalysis?.mostLikely?.probability || 0.6) * 100).toFixed(0)}%</p>
+                </div>
+                <div className="bg-red-50 rounded-2xl p-4 text-center">
+                  <h4 className="font-bold text-red-800 mb-2">Worst Case</h4>
+                  <p className="text-sm text-red-600">Year: {results.scenarioAnalysis?.worstCase?.extinctionYear || (results.extinctionYear - 5)}</p>
+                  <p className="text-sm text-red-600">Probability: {((results.scenarioAnalysis?.worstCase?.probability || 0.1) * 100).toFixed(0)}%</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Basic calculation notice */}
+            {results.isBasic && (
+              <div className="mt-6 bg-purple-50 rounded-2xl p-4 border border-purple-200">
+                <h4 className="font-semibold text-purple-800 mb-2">Basic Analysis</h4>
+                <p className="text-purple-700 text-sm mb-3">
+                  This is a basic analysis with limited scenarios. Upgrade to comprehensive analysis for:
+                </p>
+                <ul className="list-disc list-inside text-purple-700 text-sm space-y-1">
+                  {(results.upgradeIncentives?.additionalInsights || []).map((insight, index) => (
+                    <li key={index}>{insight}</li>
+                  ))}
+                </ul>
+                {user && (
+                  <button
+                    onClick={handleQueueComprehensiveCalculation}
+                    disabled={isComprehensiveLoading || isComprehensiveQueued}
+                    className="w-full mt-3 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isComprehensiveLoading ? 'Processing...' : 
+                     isComprehensiveQueued ? `Calculating (${jobProgress}%)` : 
+                     'Get Comprehensive Analysis'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'destroyers' && (
+          <div>
+            <h3 className="text-lg font-bold text-gray-900 mb-4">What's Killing Your Wealth?</h3>
+            <div className="space-y-4">
+              {(results.topWealthDestroyers || []).map((destroyer: any, index: number) => (
+                <div key={index} className="bg-red-50 rounded-2xl p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">⚠️</span>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-bold text-gray-900">{destroyer.factor}</h4>
+                        <div className="text-right">
+                          <div className="font-bold text-red-600">{formatCurrency(destroyer.impact, currencyInfo)}</div>
+                          <div className="text-sm text-red-500">({(destroyer.impact / results.currentWealth * 100).toFixed(1)}% impact)</div>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-600">{destroyer.description}</p>
+                      {destroyer.preventionStrategy && (
+                        <div className="mt-2 p-2 bg-green-50 rounded-lg">
+                          <p className="text-sm text-green-700"><strong>Prevention:</strong> {destroyer.preventionStrategy}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              
+              {(!results.topWealthDestroyers || results.topWealthDestroyers.length === 0) && (
+                <div className="bg-gray-50 rounded-2xl p-6 text-center">
+                  <p className="text-gray-600">No specific wealth destroyers identified.</p>
+                </div>
+              )}
+            </div>
+            
+            {/* Basic calculation notice */}
+            {results.isBasic && (
+              <div className="mt-6 bg-purple-50 rounded-2xl p-4 border border-purple-200">
+                <h4 className="font-semibold text-purple-800 mb-2">Basic Analysis</h4>
+                <p className="text-purple-700 text-sm">
+                  Upgrade to comprehensive analysis for detailed wealth destroyer analysis with prevention strategies.
+                </p>
+                {user && (
+                  <button
+                    onClick={handleQueueComprehensiveCalculation}
+                    disabled={isComprehensiveLoading || isComprehensiveQueued}
+                    className="w-full mt-3 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isComprehensiveLoading ? 'Processing...' : 
+                     isComprehensiveQueued ? `Calculating (${jobProgress}%)` : 
+                     'Get Comprehensive Analysis'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'impact' && (
+          <div>
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Your Family's Future</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-green-50 rounded-2xl p-6">
+                <h4 className="font-bold text-green-800 mb-4">TODAY (2025)</h4>
+                <div className="space-y-2">
+                  <p className="flex items-center gap-2">
+                    <span className="text-2xl">👨‍👩‍👧‍👦</span>
+                    <span>Net Worth: {formatCurrency(userProfile.netWorth, currencyInfo)}</span>
+                  </p>
+                  <p className="text-green-700">{results.familyImpact?.today?.status || "Feeling secure"}</p>
+                </div>
+              </div>
+              <div className="bg-red-50 rounded-2xl p-6">
+                <h4 className="font-bold text-red-800 mb-4">INHERITANCE ({results.familyImpact?.inheritance?.year || results.extinctionYear})</h4>
+                <div className="space-y-2">
+                  {results.familyImpact?.inheritance?.children ? 
+                    results.familyImpact.inheritance.children.map((child: any, index: number) => (
+                      <p key={index} className="flex items-center gap-2">
+                        <span className="text-2xl">{index === 0 ? '👧' : '👦'}</span>
+                        <span>{child.name} receives: {formatCurrency(child.inheritance, currencyInfo)}</span>
+                      </p>
+                    )) : 
+                    <p className="flex items-center gap-2">
+                      <span className="text-2xl">👨‍👩‍👧‍👦</span>
+                      <span>Children receive: {formatCurrency(results.childrenInheritance, currencyInfo)}</span>
+                    </p>
+                  }
+                  <p className="text-red-700">"Why so little, Dad?"</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Grandchildren Impact */}
+            <div className="mt-6">
+              <div className="bg-orange-50 rounded-2xl p-6">
+                <h4 className="font-bold text-orange-800 mb-4">GRANDCHILDREN ({results.familyImpact?.grandchildren?.year || (results.extinctionYear + 30)})</h4>
+                <div className="space-y-2">
+                  <p className="flex items-center gap-2">
+                    <span className="text-2xl">👶</span>
+                    <span>Inheritance: {formatCurrency(results.grandchildrenInheritance, currencyInfo)}</span>
+                  </p>
+                  {results.familyImpact?.grandchildren?.collegeShortfall && (
+                    <p className="flex items-center gap-2">
+                      <span className="text-2xl">🎓</span>
+                      <span>College Shortfall: {formatCurrency(results.familyImpact.grandchildren.collegeShortfall, currencyInfo)}</span>
+                    </p>
+                  )}
+                  <p className="text-orange-700">"What happened to our family's wealth?"</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Protection Comparison */}
+            <div className="mt-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Protection Impact</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-red-50 rounded-2xl p-4 text-center">
+                  <h4 className="font-bold text-red-800 mb-2">WITHOUT PROTECTION</h4>
+                  <p className="text-sm text-red-600">Extinction: {results.extinctionYear}</p>
+                  <p className="text-sm text-red-600">Grandchildren get: {formatCurrency(results.grandchildrenInheritance, currencyInfo)}</p>
+                </div>
+                <div className="bg-green-50 rounded-2xl p-4 text-center">
+                  <h4 className="font-bold text-green-800 mb-2">WITH PROTECTION</h4>
+                  <p className="text-sm text-green-600">Wealth Extends: {results.protectedScenario?.extinctionYear || (results.extinctionYear + 5)}+</p>
+                  <p className="text-sm text-green-600">Grandchildren get: {formatCurrency(results.protectedScenario?.grandchildrenInheritance || (results.grandchildrenInheritance * 3), currencyInfo)}</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Basic calculation notice */}
+            {results.isBasic && (
+              <div className="mt-6 bg-purple-50 rounded-2xl p-4 border border-purple-200">
+                <h4 className="font-semibold text-purple-800 mb-2">Basic Analysis</h4>
+                <p className="text-purple-700 text-sm">
+                  Upgrade to comprehensive analysis for detailed family impact analysis with personalized recommendations.
+                </p>
+                {user && (
+                  <button
+                    onClick={handleQueueComprehensiveCalculation}
+                    disabled={isComprehensiveLoading || isComprehensiveQueued}
+                    className="w-full mt-3 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isComprehensiveLoading ? 'Processing...' : 
+                     isComprehensiveQueued ? `Calculating (${jobProgress}%)` : 
+                     'Get Comprehensive Analysis'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'complexity' && (
+          <div>
+            <ComplexityScore score={results.complexityAnalysis?.score || 0} />
+            
+            <div className="mt-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Upcoming Financial Decisions</h3>
+              <div className="space-y-4">
+                <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                      <School className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">Education Planning</h4>
+                      <p className="text-sm text-gray-600">2027-2030</p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-700">
+                    College education decisions for your children will impact your wealth timeline by ±3-5 years.
+                  </p>
+                </div>
+                
+                <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <Heart className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibent text-gray-900">Parent Care Planning</h4>
+                      <p className="text-sm text-gray-600">2026-2035</p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-700">
+                    Coordinated parent care can save up to {formatCurrency(250000, currencyInfo)} over 10 years compared to reactive care.
+                  </p>
+                </div>
+                
+                <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                      <Briefcase className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">Career Transition</h4>
+                      <p className="text-sm text-gray-600">2028-2032</p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-700">
+                    Potential career changes during this period could impact your wealth by ±15%.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Coordination Opportunities</h3>
+              <div className="bg-purple-50 rounded-xl p-5">
+                <p className="text-purple-800 mb-3">
+                  Your family's complexity score of {results.complexityAnalysis?.score?.toFixed(1) || 'N/A'} indicates significant coordination opportunities:
+                </p>
+                <ul className="list-disc list-inside text-purple-700 space-y-2">
+                  {(results.complexityAnalysis?.coordinationOpportunities || []).map((opportunity, index) => (
+                    <li key={index} className="text-sm">
+                      {typeof opportunity === 'string' ? opportunity : opportunity.opportunity}
+                      {typeof opportunity !== 'string' && (
+                        <span className="text-purple-600 ml-1">
+                          (saves ~{(opportunity.potentialSavings * 100).toFixed(0)}%)
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                {(!results.complexityAnalysis?.coordinationOpportunities || results.complexityAnalysis.coordinationOpportunities.length === 0) && (
+                  <p className="text-purple-600 text-sm">No specific coordination opportunities identified.</p>
+                )}
+              </div>
+            </div>
+            
+            {/* Basic calculation notice */}
+            {results.isBasic && (
+              <div className="mt-6 bg-purple-50 rounded-2xl p-4 border border-purple-200">
+                <h4 className="font-semibold text-purple-800 mb-2">Basic Analysis</h4>
+                <p className="text-purple-700 text-sm">
+                  Upgrade to comprehensive analysis for detailed complexity analysis with personalized coordination strategies.
+                </p>
+                {user && (
+                  <button
+                    onClick={handleQueueComprehensiveCalculation}
+                    disabled={isComprehensiveLoading || isComprehensiveQueued}
+                    className="w-full mt-3 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isComprehensiveLoading ? 'Processing...' : 
+                     isComprehensiveQueued ? `Calculating (${jobProgress}%)` : 
+                     'Get Comprehensive Analysis'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'tailrisk' && (
+          <div>
+            {results.extremeValueAnalysis ? (
+              <TailRiskAnalysis 
+                evtResults={results.extremeValueAnalysis} 
+                currentWealth={results.currentWealth}
+                currencyInfo={currencyInfo}
+              />
+            ) : (
+              <div className="bg-gray-50 rounded-2xl p-6 text-center">
+                <p className="text-gray-600 mb-4">Tail risk analysis is only available with comprehensive analysis.</p>
+                {user && results.isBasic && (
+                  <button
+                    onClick={handleQueueComprehensiveCalculation}
+                    disabled={isComprehensiveLoading || isComprehensiveQueued}
+                    className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isComprehensiveLoading ? 'Processing...' : 
+                     isComprehensiveQueued ? `Calculating (${jobProgress}%)` : 
+                     'Get Comprehensive Analysis'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* CTA Buttons */}
+        <div className="space-y-4 mt-8">
           <button
             onClick={onGetProtectionPlan}
-            className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-4 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
+            className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-bold py-4 px-6 rounded-2xl text-lg transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg flex items-center justify-center gap-2"
+            aria-label="Get free protection plan"
           >
-            Get My Family Protection Strategy →
+            Get My FREE Protection Plan
+            <ArrowUp className="w-5 h-5" />
           </button>
         </div>
       </div>
     </div>
   );
 
-  const viewTabs = [
-    { id: 'shock', label: 'Shock Revelation', icon: AlertTriangle },
-    { id: 'timeline', label: 'Wealth Timeline', icon: Clock },
-    { id: 'family', label: 'Family Impact', icon: Users },
-    { id: 'complexity', label: 'Complexity Web', icon: Brain },
-    { id: 'protection', label: 'Protection Strategy', icon: Shield }
-  ];
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
-      {/* Header */}
-      <div className="px-6 py-6 border-b border-gray-200 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Your Family Wealth Extinction Analysis</h1>
-              <p className="text-gray-600">Complexity Score: {results.complexityAnalysis.score.toFixed(1)}/10</p>
-            </div>
-            <div className="text-right">
-              <div className="text-sm text-gray-600">Analysis Date</div>
-              <div className="font-medium">{new Date().toLocaleDateString()}</div>
-            </div>
-          </div>
-
-          {/* Navigation Tabs */}
-          <div className="flex flex-wrap gap-2">
-            {viewTabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setCurrentView(tab.id as any)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
-                    currentView === tab.id
-                      ? 'bg-purple-600 text-white shadow-lg'
-                      : 'bg-white text-gray-600 hover:bg-purple-50 hover:text-purple-600'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="hidden sm:inline">{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="px-6 py-8">
-        <div className="max-w-6xl mx-auto">
-          {currentView === 'shock' && renderShockRevelation()}
-          {currentView === 'timeline' && renderTimelineVisualization()}
-          {currentView === 'family' && renderFamilyImpact()}
-          {currentView === 'complexity' && renderComplexityAnalysis()}
-          {currentView === 'protection' && renderProtectionStrategy()}
-        </div>
-      </div>
-    </div>
-  );
+  // Render the current page
+  if (currentPage === 'emergency') return renderEmergencyPage();
+  if (currentPage === 'testimonial') return renderTestimonialPage();
+  if (currentPage === 'stats') return renderStatsPage();
+  return renderDetailedPage();
 };
 
 export default WealthExtinctionResults;

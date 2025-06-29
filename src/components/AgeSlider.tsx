@@ -28,9 +28,6 @@ export const AgeSlider: React.FC<AgeSliderProps> = ({ value, min, max, onChange,
     }
   }, [value]);
 
-  // Calculate progress percentage
-  const percentage = ((value - min) / (max - min)) * 100;
-
   // Find active category
   const activeCategory = categories.find(cat => value >= cat.range[0] && value <= cat.range[1]);
 
@@ -64,115 +61,19 @@ export const AgeSlider: React.FC<AgeSliderProps> = ({ value, min, max, onChange,
           <span>{min}</span>
           <span>{max}</span>
         </div>
-        {/* Track background */}
-        <div style={{
-          position: 'absolute',
-          top: 18,
-          left: 0,
-          width: '100%',
-          height: 8,
-          background: '#e0e0e0',
-          borderRadius: 5,
-          zIndex: 0,
-        }} />
-        {/* Track fill */}
-        <div style={{
-          position: 'absolute',
-          top: 18,
-          left: 0,
-          width: `${percentage}%`,
-          height: 8,
-          background: 'linear-gradient(135deg, #667eea, #764ba2)',
-          borderRadius: 5,
-          zIndex: 1,
-          transition: 'width 0.2s ease',
-        }} />
-        {/* Slider input */}
+        
+        {/* Slider input with custom-slider class */}
         <input
           type="range"
           min={min}
           max={max}
           value={value}
           onChange={e => onChange(Number(e.target.value))}
-          style={{
-            width: '100%',
-            height: 8,
-            borderRadius: 5,
-            background: 'transparent',
-            outline: 'none',
-            position: 'relative',
-            zIndex: 2,
-            WebkitAppearance: 'none',
-            appearance: 'none',
-            cursor: 'pointer',
-          }}
+          className="custom-slider"
           aria-label="Select age"
         />
-        {/* Custom thumb styles */}
-        <style>{`
-          input[type='range']::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 25px;
-            height: 25px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-            transition: all 0.2s ease;
-            position: relative;
-            z-index: 3;
-            border: none;
-            margin-top: -8.5px;
-          }
-          input[type='range']:focus::-webkit-slider-thumb,
-          input[type='range']::-webkit-slider-thumb:hover {
-            transform: scale(1.1);
-            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.6);
-          }
-          input[type='range']::-moz-range-thumb {
-            width: 25px;
-            height: 25px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            cursor: pointer;
-            border: none;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-            transition: all 0.2s ease;
-          }
-          input[type='range']:focus::-moz-range-thumb,
-          input[type='range']::-moz-range-thumb:hover {
-            transform: scale(1.1);
-            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.6);
-          }
-          input[type='range']::-ms-thumb {
-            width: 25px;
-            height: 25px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            cursor: pointer;
-            border: none;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-            transition: all 0.2s ease;
-          }
-          input[type='range']:focus::-ms-thumb {
-            transform: scale(1.1);
-            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.6);
-          }
-          input[type='range']::-webkit-slider-runnable-track {
-            height: 8px;
-            background: transparent;
-          }
-          input[type='range']::-ms-fill-lower,
-          input[type='range']::-ms-fill-upper {
-            background: transparent;
-          }
-          input[type='range']::-moz-range-track {
-            height: 8px;
-            background: transparent;
-          }
-        `}</style>
       </div>
+
       {showCategories && (
         <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: 20, flexWrap: 'wrap', gap: 10 }}>
           {categories.map(cat => {
@@ -205,4 +106,4 @@ export const AgeSlider: React.FC<AgeSliderProps> = ({ value, min, max, onChange,
       )}
     </div>
   );
-}; 
+};

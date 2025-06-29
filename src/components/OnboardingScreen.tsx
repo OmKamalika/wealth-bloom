@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
-import { ArrowRight, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowRight, ArrowLeft, ChevronDown } from 'lucide-react';
 import { PersonalInfo, FormErrors } from '../types';
 import { validateFullName, validateIndianMobile, validateEmail } from '../utils/validation';
 
 interface OnboardingScreenProps {
   onBack: () => void;
   onNext: (data: PersonalInfo) => void;
+  capturedEmail?: string;
 }
 
-const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onBack, onNext }) => {
+const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onBack, onNext, capturedEmail }) => {
   const [formData, setFormData] = useState<PersonalInfo>({
     fullName: '',
     mobileNumber: '',
@@ -16,6 +17,44 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onBack, onNext }) =
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
+  const [showIsoDropdown, setShowIsoDropdown] = useState(false);
+  const [selectedIsoCode, setSelectedIsoCode] = useState('+91');
+
+  // ISO country codes for top 25 countries by GDP
+  const isoCodes = [
+    { code: '+1', country: 'United States' },
+    { code: '+86', country: 'China' },
+    { code: '+49', country: 'Germany' },
+    { code: '+81', country: 'Japan' },
+    { code: '+91', country: 'India' },
+    { code: '+44', country: 'United Kingdom' },
+    { code: '+33', country: 'France' },
+    { code: '+55', country: 'Brazil' },
+    { code: '+39', country: 'Italy' },
+    { code: '+1', country: 'Canada' },
+    { code: '+7', country: 'Russia' },
+    { code: '+52', country: 'Mexico' },
+    { code: '+61', country: 'Australia' },
+    { code: '+82', country: 'South Korea' },
+    { code: '+34', country: 'Spain' },
+    { code: '+62', country: 'Indonesia' },
+    { code: '+31', country: 'Netherlands' },
+    { code: '+90', country: 'Turkey' },
+    { code: '+966', country: 'Saudi Arabia' },
+    { code: '+41', country: 'Switzerland' },
+    { code: '+48', country: 'Poland' },
+    { code: '+886', country: 'Taiwan' },
+    { code: '+32', country: 'Belgium' },
+    { code: '+46', country: 'Sweden' },
+    { code: '+54', country: 'Argentina' }
+  ];
+
+  // Pre-populate email if available from previous screen
+  useEffect(() => {
+    if (capturedEmail && !formData.email) {
+      setFormData(prev => ({ ...prev, email: capturedEmail }));
+    }
+  }, [capturedEmail]);
 
   const handleInputChange = (field: keyof PersonalInfo, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -78,7 +117,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onBack, onNext }) =
 
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-xl font-bold mb-4 text-gray-900">
+          <h1 className="header-custom mb-4">
             Let's create your family's safety net.
           </h1>
         </div>
@@ -86,8 +125,8 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onBack, onNext }) =
         {/* Progress */}
         <div className="mb-10">
           <div className="text-sm text-gray-600 mb-2">Step 1 of 5</div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div className="bg-gradient-to-r from-purple-600 to-purple-700 h-2 rounded-full w-1/5 transition-all duration-300"></div>
+          <div className="progress-bar-track-custom h-2">
+            <div className="progress-bar-fill-custom h-2 rounded-full w-1/5 transition-all duration-300"></div>
           </div>
         </div>
 
@@ -104,33 +143,70 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onBack, onNext }) =
               value={formData.fullName}
               onChange={(e) => handleInputChange('fullName', e.target.value)}
               onBlur={() => handleBlur('fullName')}
-              className={`w-full px-4 py-4 bg-gray-100 border-0 rounded-2xl text-gray-900 placeholder-purple-400 focus:outline-none focus:ring-2 transition-all text-base ${
+              className={`input-field-custom ${
                 errors.fullName && touched.fullName
                   ? 'focus:ring-red-500 bg-red-50'
                   : 'focus:ring-purple-500'
               }`}
               placeholder="Name"
+              aria-label="Full legal name"
             />
             {errors.fullName && touched.fullName && (
               <p className="text-red-500 text-sm mt-2">{errors.fullName}</p>
             )}
           </div>
 
-          {/* Mobile Number */}
+          {/* Mobile Number with ISO Code */}
           <div>
-            <h3 className="text-base font-semibold text-gray-900 mb-4">Mobile for all important communication</h3>
-            <input
-              type="tel"
-              value={formData.mobileNumber}
-              onChange={(e) => handleInputChange('mobileNumber', e.target.value)}
-              onBlur={() => handleBlur('mobileNumber')}
-              className={`w-full px-4 py-4 bg-gray-100 border-0 rounded-2xl text-gray-900 placeholder-purple-400 focus:outline-none focus:ring-2 transition-all text-base ${
-                errors.mobileNumber && touched.mobileNumber
-                  ? 'focus:ring-red-500 bg-red-50'
-                  : 'focus:ring-purple-500'
-              }`}
-              placeholder="Mobile Number"
-            />
+            <h3 className="label-custom font-semibold mb-4">Mobile for all important communication</h3>
+            <div className="flex gap-2">
+              {/* ISO Code Dropdown */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowIsoDropdown(!showIsoDropdown)}
+                  className="flex items-center gap-2 px-4 py-4 bg-custom-bg-input rounded-xl text-custom-text min-w-[100px]"
+                  aria-label="Select country code"
+                >
+                  <span>{selectedIsoCode}</span>
+                  <ChevronDown className="w-4 h-4 text-custom-purple" />
+                </button>
+                
+                {showIsoDropdown && (
+                  <div className="absolute top-full left-0 z-10 mt-1 w-64 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg">
+                    {isoCodes.map((iso) => (
+                      <button
+                        key={`${iso.code}-${iso.country}`}
+                        type="button"
+                        onClick={() => {
+                          setSelectedIsoCode(iso.code);
+                          setShowIsoDropdown(false);
+                        }}
+                        className="w-full px-4 py-3 text-left hover:bg-gray-50 first:rounded-t-xl last:rounded-b-xl transition-colors"
+                      >
+                        <span className="font-medium">{iso.code}</span> {iso.country}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              {/* Mobile Number Input */}
+              <input
+                type="tel"
+                value={formData.mobileNumber}
+                onChange={(e) => handleInputChange('mobileNumber', e.target.value)}
+                onBlur={() => handleBlur('mobileNumber')}
+                className={`input-field-custom flex-1 ${
+                  errors.mobileNumber && touched.mobileNumber
+                    ? 'focus:ring-red-500 bg-red-50'
+                    : 'focus:ring-purple-500'
+                }`}
+                placeholder="Mobile Number"
+                aria-label="Mobile number"
+                inputMode="tel"
+              />
+            </div>
             {errors.mobileNumber && touched.mobileNumber && (
               <p className="text-red-500 text-sm mt-2">{errors.mobileNumber}</p>
             )}
@@ -138,18 +214,19 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onBack, onNext }) =
 
           {/* Email */}
           <div>
-            <h3 className="text-base font-semibold text-gray-900 mb-4">Email ID for sharing important documents</h3>
+            <h3 className="label-custom font-semibold mb-4">Email ID for sharing important documents</h3>
             <input
               type="email"
               value={formData.email}
               onChange={(e) => handleInputChange('email', e.target.value)}
               onBlur={() => handleBlur('email')}
-              className={`w-full px-4 py-4 bg-gray-100 border-0 rounded-2xl text-gray-900 placeholder-purple-400 focus:outline-none focus:ring-2 transition-all text-base ${
+              className={`input-field-custom ${
                 errors.email && touched.email
                   ? 'focus:ring-red-500 bg-red-50'
                   : 'focus:ring-purple-500'
               }`}
               placeholder="Email"
+              aria-label="Email address"
             />
             {errors.email && touched.email && (
               <p className="text-red-500 text-sm mt-2">{errors.email}</p>
@@ -169,7 +246,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onBack, onNext }) =
       {/* Submit Button */}
       <button
         onClick={handleSubmit}
-        className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-bold py-4 px-6 rounded-2xl text-lg transition-all duration-300 transform active:scale-95 shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none mt-8"
+        className="btn-primary-custom text-lg mt-8"
         disabled={!formData.fullName || !formData.mobileNumber || !formData.email}
       >
         Next: Add Beneficiaries →

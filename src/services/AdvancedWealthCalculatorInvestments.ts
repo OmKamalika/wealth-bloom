@@ -14,32 +14,32 @@ export class AdvancedWealthCalculatorInvestments {
     volatility: number; 
     correlation: number;
   }> = {
-    'stocks': { baseReturn: 0.12, volatility: 0.25, correlation: 1.0 },
-    'bonds': { baseReturn: 0.07, volatility: 0.08, correlation: 0.3 },
-    'realEstate': { baseReturn: 0.09, volatility: 0.15, correlation: 0.4 },
-    'alternatives': { baseReturn: 0.11, volatility: 0.20, correlation: 0.6 },
-    'gold': { baseReturn: 0.06, volatility: 0.18, correlation: 0.1 },
-    'fixed_deposits': { baseReturn: 0.065, volatility: 0.02, correlation: 0.1 }
+    'stocks': { baseReturn: 0.10, volatility: 0.28, correlation: 1.0 }, // Reduced return, increased volatility
+    'bonds': { baseReturn: 0.06, volatility: 0.10, correlation: 0.3 }, // Reduced return, increased volatility
+    'realEstate': { baseReturn: 0.08, volatility: 0.18, correlation: 0.4 }, // Reduced return, increased volatility
+    'alternatives': { baseReturn: 0.09, volatility: 0.25, correlation: 0.6 }, // Reduced return, increased volatility
+    'gold': { baseReturn: 0.05, volatility: 0.20, correlation: 0.1 }, // Reduced return, increased volatility
+    'fixed_deposits': { baseReturn: 0.06, volatility: 0.03, correlation: 0.1 } // Increased volatility
   };
 
   // Indian market cycle patterns (7-year cycles)
   private static readonly MARKET_CYCLES = {
-    'equity': [0.18, 0.15, -0.08, 0.25, 0.10, -0.12, 0.20],
-    'debt': [0.08, 0.06, 0.10, 0.05, 0.09, 0.11, 0.07],
-    'real_estate': [0.12, 0.15, 0.05, 0.18, 0.08, -0.03, 0.13],
-    'gold': [0.08, 0.15, -0.02, 0.10, 0.18, 0.06, -0.01]
+    'equity': [0.15, 0.12, -0.12, 0.20, 0.08, -0.18, 0.16], // More extreme cycles
+    'debt': [0.07, 0.05, 0.09, 0.04, 0.08, 0.10, 0.06],
+    'real_estate': [0.10, 0.12, 0.03, 0.15, 0.06, -0.08, 0.11], // More extreme cycles
+    'gold': [0.07, 0.13, -0.04, 0.08, 0.15, 0.05, -0.03] // More extreme cycles
   };
 
   // Expense ratios for different investment vehicles in India
   private static readonly EXPENSE_RATIOS: Record<string, number> = {
-    'direct_stocks': 0.005, // 0.5% for direct stock investing
-    'mutual_funds': 0.015, // 1.5% for mutual funds
-    'etfs': 0.008, // 0.8% for ETFs
-    'real_estate': 0.02, // 2% for real estate (maintenance, taxes)
-    'gold_physical': 0.01, // 1% for physical gold (storage, making charges)
-    'gold_etf': 0.005, // 0.5% for gold ETFs
-    'fixed_deposits': 0.001, // 0.1% for FDs
-    'bonds': 0.003 // 0.3% for bonds
+    'direct_stocks': 0.008, // Increased from 0.005
+    'mutual_funds': 0.018, // Increased from 0.015
+    'etfs': 0.010, // Increased from 0.008
+    'real_estate': 0.025, // Increased from 0.02
+    'gold_physical': 0.015, // Increased from 0.01
+    'gold_etf': 0.008, // Increased from 0.005
+    'fixed_deposits': 0.002, // Increased from 0.001
+    'bonds': 0.005 // Increased from 0.003
   };
 
   // Tax rates for different investment types in India
@@ -53,6 +53,55 @@ export class AdvancedWealthCalculatorInvestments {
     'interest_income': 0.30 // 30% for interest income
   };
 
+  // Correlation matrix for asset classes
+  private static readonly CORRELATION_MATRIX: Record<string, Record<string, number>> = {
+    'stocks': {
+      'stocks': 1.0,
+      'bonds': -0.3,
+      'realEstate': 0.4,
+      'alternatives': 0.6,
+      'gold': -0.2
+    },
+    'bonds': {
+      'stocks': -0.3,
+      'bonds': 1.0,
+      'realEstate': 0.1,
+      'alternatives': 0.2,
+      'gold': 0.3
+    },
+    'realEstate': {
+      'stocks': 0.4,
+      'bonds': 0.1,
+      'realEstate': 1.0,
+      'alternatives': 0.3,
+      'gold': 0.1
+    },
+    'alternatives': {
+      'stocks': 0.6,
+      'bonds': 0.2,
+      'realEstate': 0.3,
+      'alternatives': 1.0,
+      'gold': 0.0
+    },
+    'gold': {
+      'stocks': -0.2,
+      'bonds': 0.3,
+      'realEstate': 0.1,
+      'alternatives': 0.0,
+      'gold': 1.0
+    }
+  };
+
+  // Market crash probabilities
+  private static readonly MARKET_CRASH_PROBABILITY = 0.08; // 8% chance of crash in any given year
+  private static readonly MARKET_CRASH_IMPACT = {
+    'stocks': -0.35, // 35% drop
+    'bonds': -0.10, // 10% drop
+    'realEstate': -0.25, // 25% drop
+    'alternatives': -0.30, // 30% drop
+    'gold': 0.15 // 15% gain (safe haven)
+  };
+
   /**
    * Calculate Indian investment returns with comprehensive modeling
    */
@@ -64,17 +113,20 @@ export class AdvancedWealthCalculatorInvestments {
     // Get portfolio allocation
     const allocation = inputs.financialFoundation.investmentAllocation;
     
+    // Check for market crash this year
+    const isMarketCrash = Math.random() < this.MARKET_CRASH_PROBABILITY;
+    
     // Calculate returns for each asset class
-    const stockReturns = this.calculateStockReturns(wealth * allocation.stocks, year, inputs);
-    const bondReturns = this.calculateBondReturns(wealth * allocation.bonds, year, inputs);
-    const realEstateReturns = this.calculateRealEstateReturns(wealth * allocation.realEstate, year, inputs);
-    const alternativeReturns = this.calculateAlternativeReturns(wealth * allocation.alternatives, year, inputs);
+    const stockReturns = this.calculateStockReturns(wealth * allocation.stocks, year, inputs, isMarketCrash);
+    const bondReturns = this.calculateBondReturns(wealth * allocation.bonds, year, inputs, isMarketCrash);
+    const realEstateReturns = this.calculateRealEstateReturns(wealth * allocation.realEstate, year, inputs, isMarketCrash);
+    const alternativeReturns = this.calculateAlternativeReturns(wealth * allocation.alternatives, year, inputs, isMarketCrash);
     
     // Calculate total portfolio return
     const totalReturn = stockReturns + bondReturns + realEstateReturns + alternativeReturns;
     
     // Apply behavioral finance adjustments
-    const behaviorAdjustedReturn = this.applyBehavioralAdjustments(totalReturn, inputs);
+    const behaviorAdjustedReturn = this.applyBehavioralAdjustments(totalReturn, inputs, isMarketCrash);
     
     // Apply expense and tax drag
     const netReturn = this.applyExpenseAndTaxDrag(behaviorAdjustedReturn, allocation, inputs);
@@ -85,7 +137,7 @@ export class AdvancedWealthCalculatorInvestments {
   /**
    * Calculate stock market returns with Indian market characteristics
    */
-  private static calculateStockReturns(allocatedWealth: number, year: number, inputs: CalculatorData): number {
+  private static calculateStockReturns(allocatedWealth: number, year: number, inputs: CalculatorData, isMarketCrash: boolean): number {
     if (allocatedWealth <= 0) return 0;
     
     // Get base stock characteristics
@@ -98,11 +150,16 @@ export class AdvancedWealthCalculatorInvestments {
     const cycleReturn = this.MARKET_CYCLES.equity[cyclePosition];
     
     // Calculate expected return for this year
-    let expectedReturn = baseReturn + (cycleReturn * 0.3); // 30% weight to cycle
+    let expectedReturn = baseReturn + (cycleReturn * 0.5); // 50% weight to cycle (increased from 30%)
     
     // Add random volatility
     const randomFactor = (Math.random() - 0.5) * volatility;
     expectedReturn += randomFactor;
+    
+    // Apply market crash if applicable
+    if (isMarketCrash) {
+      expectedReturn = this.MARKET_CRASH_IMPACT.stocks;
+    }
     
     // Adjust for risk tolerance
     const riskAdjustment = this.getRiskToleranceAdjustment(inputs.behavioralProfile.riskTolerance);
@@ -118,7 +175,7 @@ export class AdvancedWealthCalculatorInvestments {
   /**
    * Calculate bond returns with Indian debt market characteristics
    */
-  private static calculateBondReturns(allocatedWealth: number, year: number, inputs: CalculatorData): number {
+  private static calculateBondReturns(allocatedWealth: number, year: number, inputs: CalculatorData, isMarketCrash: boolean): number {
     if (allocatedWealth <= 0) return 0;
     
     // Get base bond characteristics
@@ -131,11 +188,16 @@ export class AdvancedWealthCalculatorInvestments {
     const cycleReturn = this.MARKET_CYCLES.debt[cyclePosition];
     
     // Calculate expected return for this year
-    let expectedReturn = baseReturn + (cycleReturn * 0.4); // 40% weight to cycle
+    let expectedReturn = baseReturn + (cycleReturn * 0.5); // 50% weight to cycle (increased from 40%)
     
     // Add small random volatility
     const randomFactor = (Math.random() - 0.5) * volatility;
     expectedReturn += randomFactor;
+    
+    // Apply market crash if applicable
+    if (isMarketCrash) {
+      expectedReturn = this.MARKET_CRASH_IMPACT.bonds;
+    }
     
     // Adjust for interest rate environment (simplified)
     const interestRateAdjustment = this.getInterestRateAdjustment(year);
@@ -147,7 +209,7 @@ export class AdvancedWealthCalculatorInvestments {
   /**
    * Calculate real estate returns with Indian property market characteristics
    */
-  private static calculateRealEstateReturns(allocatedWealth: number, year: number, inputs: CalculatorData): number {
+  private static calculateRealEstateReturns(allocatedWealth: number, year: number, inputs: CalculatorData, isMarketCrash: boolean): number {
     if (allocatedWealth <= 0) return 0;
     
     // Get base real estate characteristics
@@ -160,18 +222,23 @@ export class AdvancedWealthCalculatorInvestments {
     const cycleReturn = this.MARKET_CYCLES.real_estate[cyclePosition];
     
     // Calculate expected return for this year
-    let expectedReturn = baseReturn + (cycleReturn * 0.5); // 50% weight to cycle
+    let expectedReturn = baseReturn + (cycleReturn * 0.6); // 60% weight to cycle (increased from 50%)
     
     // Add random volatility
     const randomFactor = (Math.random() - 0.5) * volatility;
     expectedReturn += randomFactor;
+    
+    // Apply market crash if applicable
+    if (isMarketCrash) {
+      expectedReturn = this.MARKET_CRASH_IMPACT.realEstate;
+    }
     
     // Adjust for location (metro cities have higher returns)
     const locationMultiplier = this.getLocationMultiplier(inputs.coreIdentity.location.cityType);
     expectedReturn *= locationMultiplier;
     
     // Real estate has higher transaction costs and illiquidity
-    const illiquidityDiscount = 0.02; // 2% discount for illiquidity
+    const illiquidityDiscount = 0.03; // 3% discount for illiquidity (increased from 2%)
     expectedReturn -= illiquidityDiscount;
     
     return allocatedWealth * expectedReturn;
@@ -180,7 +247,7 @@ export class AdvancedWealthCalculatorInvestments {
   /**
    * Calculate alternative investment returns
    */
-  private static calculateAlternativeReturns(allocatedWealth: number, year: number, inputs: CalculatorData): number {
+  private static calculateAlternativeReturns(allocatedWealth: number, year: number, inputs: CalculatorData, isMarketCrash: boolean): number {
     if (allocatedWealth <= 0) return 0;
     
     // Get base alternative characteristics
@@ -195,8 +262,13 @@ export class AdvancedWealthCalculatorInvestments {
     const randomFactor = (Math.random() - 0.5) * volatility;
     expectedReturn += randomFactor;
     
+    // Apply market crash if applicable
+    if (isMarketCrash) {
+      expectedReturn = this.MARKET_CRASH_IMPACT.alternatives;
+    }
+    
     // Alternatives have higher fees and complexity
-    const complexityDiscount = 0.015; // 1.5% discount for complexity
+    const complexityDiscount = 0.02; // 2% discount for complexity (increased from 1.5%)
     expectedReturn -= complexityDiscount;
     
     return allocatedWealth * expectedReturn;
@@ -205,11 +277,11 @@ export class AdvancedWealthCalculatorInvestments {
   /**
    * Apply behavioral finance adjustments based on user profile
    */
-  private static applyBehavioralAdjustments(totalReturn: number, inputs: CalculatorData): number {
+  private static applyBehavioralAdjustments(totalReturn: number, inputs: CalculatorData, isMarketCrash: boolean): number {
     let adjustedReturn = totalReturn;
     
-    // Market crash response impact
-    const behaviorGap = this.calculateBehaviorGap(inputs.behavioralProfile.marketCrashResponse);
+    // Market crash response impact (much higher during crashes)
+    const behaviorGap = this.calculateBehaviorGap(inputs.behavioralProfile.marketCrashResponse, isMarketCrash);
     adjustedReturn -= (totalReturn * behaviorGap);
     
     // Review frequency impact (more frequent review can lead to overtrading)
@@ -259,8 +331,8 @@ export class AdvancedWealthCalculatorInvestments {
     const equityTaxRate = this.TAX_RATES.equity_ltcg;
     const debtTaxRate = this.TAX_RATES.debt_ltcg;
     
-    const equityTax = (totalReturn * allocation.stocks * equityTaxRate * 0.3); // Assume 30% of returns are realized
-    const debtTax = (totalReturn * allocation.bonds * debtTaxRate * 0.2); // Assume 20% of returns are realized
+    const equityTax = (totalReturn * allocation.stocks * equityTaxRate * 0.4); // Assume 40% of returns are realized (increased from 30%)
+    const debtTax = (totalReturn * allocation.bonds * debtTaxRate * 0.3); // Assume 30% of returns are realized (increased from 20%)
     
     return equityTax + debtTax;
   }
@@ -268,15 +340,18 @@ export class AdvancedWealthCalculatorInvestments {
   /**
    * Calculate behavior gap based on market crash response
    */
-  private static calculateBehaviorGap(crashResponse: string): number {
-    const behaviorGaps: Record<string, number> = {
+  private static calculateBehaviorGap(crashResponse: string, isMarketCrash: boolean): number {
+    const baseBehaviorGaps: Record<string, number> = {
       'panic_sell': 0.035, // 3.5% annual drag from poor timing
       'worry_hold': 0.018, // 1.8% drag from suboptimal decisions
       'buying_opportunity': -0.005, // 0.5% benefit from good timing
       'ignore_it': 0.008 // 0.8% drag from neglect
     };
     
-    return behaviorGaps[crashResponse] || 0.015;
+    // During market crashes, behavior gap is amplified
+    const crashMultiplier = isMarketCrash ? 5.0 : 1.0;
+    
+    return (baseBehaviorGaps[crashResponse] || 0.015) * crashMultiplier;
   }
 
   /**
@@ -333,11 +408,11 @@ export class AdvancedWealthCalculatorInvestments {
    */
   private static getReviewFrequencyImpact(reviewFrequency: string): number {
     switch (reviewFrequency) {
-      case 'daily': return 0.95; // 5% penalty for overtrading
-      case 'weekly': return 0.98; // 2% penalty
+      case 'daily': return 0.93; // 7% penalty for overtrading (increased from 5%)
+      case 'weekly': return 0.96; // 4% penalty (increased from 2%)
       case 'monthly': return 1.0; // No impact
       case 'quarterly': return 1.01; // 1% benefit
-      case 'rarely': return 0.97; // 3% penalty for neglect
+      case 'rarely': return 0.95; // 5% penalty for neglect (increased from 3%)
       default: return 1.0;
     }
   }
@@ -348,9 +423,9 @@ export class AdvancedWealthCalculatorInvestments {
   private static getPlanningApproachImpact(planningApproach: string): number {
     switch (planningApproach) {
       case 'detailed_research': return 1.02; // 2% benefit
-      case 'important_overwhelming': return 0.98; // 2% penalty
+      case 'important_overwhelming': return 0.97; // 3% penalty (increased from 2%)
       case 'delegate_experts': return 1.01; // 1% benefit
-      case 'avoid_thinking': return 0.96; // 4% penalty
+      case 'avoid_thinking': return 0.94; // 6% penalty (increased from 4%)
       default: return 1.0;
     }
   }
@@ -364,7 +439,7 @@ export class AdvancedWealthCalculatorInvestments {
     wealth: number
   ): number {
     // Calculate rebalancing costs (simplified)
-    const rebalancingCost = 0.005; // 0.5% cost for rebalancing
+    const rebalancingCost = 0.006; // 0.6% cost for rebalancing (increased from 0.5%)
     const allocationDrift = Math.abs(currentAllocation.stocks - targetAllocation.stocks) +
                            Math.abs(currentAllocation.bonds - targetAllocation.bonds) +
                            Math.abs(currentAllocation.realEstate - targetAllocation.realEstate) +
@@ -404,5 +479,105 @@ export class AdvancedWealthCalculatorInvestments {
       realEstate: baseStockAllocation * 0.15, // 15% of equity allocation
       alternatives: baseStockAllocation * 0.05 // 5% of equity allocation
     };
+  }
+
+  /**
+   * Generate correlated random returns for Monte Carlo simulation
+   */
+  static generateCorrelatedReturns(numYears: number, numSimulations: number): any {
+    const assetClasses = ['stocks', 'bonds', 'realEstate', 'alternatives', 'gold'];
+    const returns: Record<string, number[][]> = {};
+    
+    // Initialize returns object
+    assetClasses.forEach(asset => {
+      returns[asset] = Array(numSimulations).fill(0).map(() => Array(numYears).fill(0));
+    });
+    
+    // Generate correlated returns for each simulation
+    for (let sim = 0; sim < numSimulations; sim++) {
+      for (let year = 0; year < numYears; year++) {
+        // Generate uncorrelated random numbers
+        const uncorrelatedRandoms: Record<string, number> = {};
+        assetClasses.forEach(asset => {
+          uncorrelatedRandoms[asset] = this.generateNormalRandom();
+        });
+        
+        // Apply correlations
+        assetClasses.forEach(asset => {
+          const assetChar = this.ASSET_CLASS_RETURNS[asset];
+          let correlatedRandom = uncorrelatedRandoms[asset];
+          
+          // Apply correlation with other asset classes
+          assetClasses.forEach(otherAsset => {
+            if (asset !== otherAsset) {
+              const correlation = this.CORRELATION_MATRIX[asset][otherAsset] || 0;
+              correlatedRandom += correlation * uncorrelatedRandoms[otherAsset];
+            }
+          });
+          
+          // Normalize and apply to return distribution
+          const normalizedRandom = correlatedRandom / Math.sqrt(assetClasses.length);
+          const assetReturn = assetChar.baseReturn + (normalizedRandom * assetChar.volatility);
+          
+          returns[asset][sim][year] = assetReturn;
+        });
+      }
+    }
+    
+    return returns;
+  }
+
+  /**
+   * Generate a random number from a normal distribution
+   */
+  private static generateNormalRandom(): number {
+    // Box-Muller transform
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    
+    return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+  }
+
+  /**
+   * Calculate the Sharpe ratio for a portfolio
+   */
+  static calculateSharpeRatio(returns: number[], riskFreeRate: number = 0.05): number {
+    if (returns.length === 0) return 0;
+    
+    // Calculate average return
+    const avgReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
+    
+    // Calculate standard deviation (volatility)
+    const variance = returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length;
+    const stdDev = Math.sqrt(variance);
+    
+    // Calculate Sharpe ratio
+    return (avgReturn - riskFreeRate) / stdDev;
+  }
+
+  /**
+   * Calculate the maximum drawdown for a wealth trajectory
+   */
+  static calculateMaxDrawdown(wealthTrajectory: number[]): number {
+    if (wealthTrajectory.length <= 1) return 0;
+    
+    let maxDrawdown = 0;
+    let peak = wealthTrajectory[0];
+    
+    for (let i = 1; i < wealthTrajectory.length; i++) {
+      const currentValue = wealthTrajectory[i];
+      
+      // Update peak if current value is higher
+      if (currentValue > peak) {
+        peak = currentValue;
+      } else {
+        // Calculate drawdown
+        const drawdown = (peak - currentValue) / peak;
+        maxDrawdown = Math.max(maxDrawdown, drawdown);
+      }
+    }
+    
+    return maxDrawdown;
   }
 }
