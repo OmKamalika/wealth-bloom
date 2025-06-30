@@ -2,7 +2,7 @@
 
 A sophisticated wealth extinction calculator that analyzes your family's financial future across multiple generations.
 
-## 🚀 Quick Start 
+## 🚀 Quick Start
 
 ### Prerequisites
 - Node.js (v16 or higher)
