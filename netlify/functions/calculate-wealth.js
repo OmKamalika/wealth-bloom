@@ -67,7 +67,7 @@ exports.handler = async (event, context) => {
     // Try to import the compiled AdvancedWealthCalculator
     let results;
     try {
-      const { AdvancedWealthCalculator } = require('../../dist-functions/services/AdvancedWealthCalculator');
+      const { AdvancedWealthCalculator } = require('./dist-functions/services/AdvancedWealthCalculator');
       console.log('🔮 Starting calculation with AdvancedWealthCalculator...');
       results = await AdvancedWealthCalculator.calculateWealthExtinction(calculatorData);
       console.log('✅ Advanced calculation completed');

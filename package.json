@@ -7,8 +7,9 @@
     "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
     "dev:frontend": "vite",
     "dev:backend": "tsx server.ts",
-    "build": "npm run build:functions && vite build",
+    "build": "npm run build:functions && vite build && npm run copy:compiled-functions",
     "build:functions": "tsc --project tsconfig.functions.json",
+    "copy:compiled-functions": "cp -r dist-functions netlify/functions/",
     "lint": "eslint .",
     "preview": "vite preview"
   },
