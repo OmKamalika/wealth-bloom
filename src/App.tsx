@@ -1,28 +1,40 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Screen, PersonalInfo, FamilyMember, LocationInfo, AssetInfo } from './types';
-import LandingScreen from './components/LandingScreen';
-import ValuePropositionScreen from './components/ValuePropositionScreen';
-import ProblemSolutionScreen from './components/ProblemSolutionScreen';
-import OnboardingScreen from './components/OnboardingScreen';
-import FamilyBuilderScreen from './components/FamilyBuilderScreen';
-import LocationScreen from './components/LocationScreen';
-import AssetsScreen from './components/AssetsScreen';
-import FinalDecisionsScreen from './components/FinalDecisionsScreen';
-import DashboardScreen from './components/DashboardScreen';
-import WealthCalculatorLanding from './components/WealthCalculatorLanding';
-import WealthCalculatorFlow from './components/WealthCalculatorFlow';
-import WealthExtinctionResults from './components/WealthExtinctionResults';
-import EmailCaptureScreen from './components/EmailCaptureScreen';
 import { CurrencyProvider } from './contexts/CurrencyContext';
 import { AuthProvider } from './contexts/AuthContext';
-import SignIn from './components/Auth/SignIn';
-import SignUp from './components/Auth/SignUp';
-import PasswordReset from './components/Auth/PasswordReset';
-import Profile from './components/User/Profile';
 import AuthGuard from './components/Auth/AuthGuard';
 import { supabase } from './lib/supabase';
 import { getAnonymousSessionId } from './utils/sessionUtils';
 import { associateAnonymousCalculations } from './api/calculate-wealth-api';
+
+// Lazy load components to enable code splitting
+const LandingScreen = React.lazy(() => import('./components/LandingScreen'));
+const ValuePropositionScreen = React.lazy(() => import('./components/ValuePropositionScreen'));
+const ProblemSolutionScreen = React.lazy(() => import('./components/ProblemSolutionScreen'));
+const OnboardingScreen = React.lazy(() => import('./components/OnboardingScreen'));
+const FamilyBuilderScreen = React.lazy(() => import('./components/FamilyBuilderScreen'));
+const LocationScreen = React.lazy(() => import('./components/LocationScreen'));
+const AssetsScreen = React.lazy(() => import('./components/AssetsScreen'));
+const FinalDecisionsScreen = React.lazy(() => import('./components/FinalDecisionsScreen'));
+const DashboardScreen = React.lazy(() => import('./components/DashboardScreen'));
+const WealthCalculatorLanding = React.lazy(() => import('./components/WealthCalculatorLanding'));
+const WealthCalculatorFlow = React.lazy(() => import('./components/WealthCalculatorFlow'));
+const WealthExtinctionResults = React.lazy(() => import('./components/WealthExtinctionResults'));
+const EmailCaptureScreen = React.lazy(() => import('./components/EmailCaptureScreen'));
+const SignIn = React.lazy(() => import('./components/Auth/SignIn'));
+const SignUp = React.lazy(() => import('./components/Auth/SignUp'));
+const PasswordReset = React.lazy(() => import('./components/Auth/PasswordReset'));
+const Profile = React.lazy(() => import('./components/User/Profile'));
+
+// Loading component for Suspense fallback
+const LoadingSpinner = () => (
+  <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+    <div className="flex flex-col items-center space-y-4">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+      <p className="text-white text-lg">Loading...</p>
+    </div>
+  </div>
+);
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('landing'); // Start with wealth calculator landing
@@ -439,7 +451,9 @@ function App() {
     <AuthProvider>
       <CurrencyProvider>
         <div className="min-h-screen">
-          {renderScreen()}
+          <Suspense fallback={<LoadingSpinner />}>
+            {renderScreen()}
+          </Suspense>
         </div>
       </CurrencyProvider>
     </AuthProvider>
