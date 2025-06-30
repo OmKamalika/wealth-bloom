@@ -478,7 +478,13 @@ export class AdvancedWealthCalculatorDestroyers {
     timeframe: string;
   }> {
     const destroyers = this.identifyWealthDestroyers(inputs);
-    const strategies = [];
+    const strategies: Array<{
+      destroyer: string;
+      strategy: string;
+      difficulty: 'easy' | 'medium' | 'hard';
+      impact: 'high' | 'medium' | 'low';
+      timeframe: string;
+    }> = [];
     
     destroyers.forEach(destroyer => {
       const difficulty = this.getStrategyDifficulty(destroyer.factor);
