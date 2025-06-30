@@ -7,6 +7,11 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
+  build: {
+    rollupOptions: {
+      external: ['pdfkit', 'puppeteer', 'sharp']
+    }
+  },
   server: {
     proxy: {
       '/api': {
