@@ -64,15 +64,17 @@ exports.handler = async (event, context) => {
     console.log('💰 Net worth:', calculatorData.financialFoundation.currentNetWorth);
     console.log('🔢 Complexity score:', calculatorData.complexityAnalysis.complexityScore);
     
-    // Import the AdvancedWealthCalculator dynamically
-    // Note: In a real Netlify function, you would need to bundle your dependencies
-    // This is a simplified example
-    const { AdvancedWealthCalculator } = require('../../src/services/AdvancedWealthCalculator');
-    
-    // Run the advanced calculation
-    console.log('🔮 Starting calculation with AdvancedWealthCalculator...');
-    const results = await AdvancedWealthCalculator.calculateWealthExtinction(calculatorData);
-    console.log('✅ Advanced calculation completed');
+    // Try to import the compiled AdvancedWealthCalculator
+    let results;
+    try {
+      const { AdvancedWealthCalculator } = require('../../dist-functions/services/AdvancedWealthCalculator');
+      console.log('🔮 Starting calculation with AdvancedWealthCalculator...');
+      results = await AdvancedWealthCalculator.calculateWealthExtinction(calculatorData);
+      console.log('✅ Advanced calculation completed');
+    } catch (importError) {
+      console.log('⚠️ Could not import AdvancedWealthCalculator, using fallback calculation');
+      results = calculateWealthExtinction(calculatorData);
+    }
     
     // Store calculation in database if Supabase is configured
     const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
