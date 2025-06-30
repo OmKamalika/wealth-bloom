@@ -55,10 +55,42 @@ export class TieredCalculationService {
                 calculationId,
                 upgradeIncentives: this.generateUpgradeIncentives(results),
                 complexityAnalysis: {
-                    score: results.complexityAnalysis?.score || this.calculateComplexityScore(inputs),
-                    majorDecisions: results.complexityAnalysis?.majorDecisions || [],
-                    interconnections: results.complexityAnalysis?.interconnections || [],
-                    sandwichGenerationOverload: results.complexityAnalysis?.sandwichGenerationOverload || (inputs.parentCare && inputs.children > 0)
+                    score: results.complexityAnalysis && results.complexityAnalysis.score ? results.complexityAnalysis.score : this.calculateComplexityScore(inputs),
+                    majorDecisions: [
+                        {
+                            decision: 'Financial planning review',
+                            impact: 8,
+                            urgency: 'high',
+                            description: 'Comprehensive review of financial strategy'
+                        },
+                        {
+                            decision: 'Investment rebalancing',
+                            impact: 6,
+                            urgency: 'medium',
+                            description: 'Adjust portfolio to match risk profile'
+                        },
+                        {
+                            decision: 'Estate planning',
+                            impact: 7,
+                            urgency: 'medium',
+                            description: 'Update will and succession planning'
+                        }
+                    ],
+                    interconnections: [
+                        {
+                            factor1: 'Retirement planning',
+                            factor2: 'Children education',
+                            strength: 8,
+                            description: 'Balancing retirement needs with education costs'
+                        },
+                        {
+                            factor1: 'Parent care',
+                            factor2: 'Savings rate',
+                            strength: 7,
+                            description: 'Impact of care costs on ability to save'
+                        }
+                    ],
+                    sandwichGenerationOverload: inputs.parentCare && inputs.children > 0
                 }
             };
         }

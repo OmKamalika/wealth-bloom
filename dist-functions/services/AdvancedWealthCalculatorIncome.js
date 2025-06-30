@@ -196,19 +196,19 @@ export class AdvancedWealthCalculatorIncome {
      * Get inflation rate for a specific year
      */
     static getInflationRate(year) {
-        return this.INDIAN_INFLATION_RATES[year] || this.INDIAN_INFLATION_RATES.default;
+        return this.INDIAN_INFLATION_RATES[year.toString()] || this.INDIAN_INFLATION_RATES.default;
     }
 }
 // Indian inflation rates by year (historical and projected)
 AdvancedWealthCalculatorIncome.INDIAN_INFLATION_RATES = {
-    2025: 0.045, // 4.5%
-    2026: 0.043, // 4.3%
-    2027: 0.042, // 4.2%
-    2028: 0.040, // 4.0%
-    2029: 0.039, // 3.9%
-    2030: 0.038, // 3.8%
+    '2025': 0.045, // 4.5%
+    '2026': 0.043, // 4.3%
+    '2027': 0.042, // 4.2%
+    '2028': 0.040, // 4.0%
+    '2029': 0.039, // 3.9%
+    '2030': 0.038, // 3.8%
     // Default for future years
-    default: 0.037 // 3.7%
+    'default': 0.037 // 3.7%
 };
 // Industry growth rates in India
 AdvancedWealthCalculatorIncome.INDUSTRY_GROWTH_RATES = {

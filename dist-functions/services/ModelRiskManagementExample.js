@@ -44,6 +44,7 @@ export class ModelRiskManagementExample {
                     'Assumes rational financial behavior',
                     'Does not account for policy changes'
                 ],
+                reviewFrequency: 'QUARTERLY',
                 approvedBy: 'Model Governance Committee'
             });
             console.log(`✅ Model registered with ID: ${wealthModelId}`);
