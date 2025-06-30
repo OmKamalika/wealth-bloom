@@ -19,6 +19,11 @@
     "src/utils/**/*"
   ],
   "exclude": [
+    "src/utils/analytics.ts",
+    "src/utils/geolocation.ts",
+    "src/lib/supabase.ts",
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
     "node_modules",
     "dist",
     "dist-functions"
