@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRight, ArrowLeft, AlertTriangle, TrendingUp, Users, Heart, Brain, Clock, Shield, Calculator } from 'lucide-react';
+import { ArrowRight, AlertTriangle, TrendingUp, Users, Heart, Brain, Clock, Shield, Calculator } from 'lucide-react';
 import { calculateWealthExtinction } from '../api/calculate-wealth-api';
 import { performBasicCalculation } from '../api/tiered-calculation-api';
 import { AgeSlider } from './AgeSlider';
@@ -11,9 +11,6 @@ import { getOptimizedLocation } from '../utils/geolocation';
 import { CalculatorData } from '../types/calculator';
 
 // Type for form section names
-type FormSection = keyof CalculatorData;
-
-// This is a multi-step form implementation of the calculator
 const WealthCalculatorFlow: React.FC<{
   onComplete: (data: any) => void;
   onBack: () => void;
