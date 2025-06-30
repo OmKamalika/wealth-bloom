@@ -1,12 +1,9 @@
-"use strict";
 // src/services/ModelRegistrationService.ts
 // Service for registering and managing models in the risk management framework
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ModelRegistrationService = void 0;
 /**
  * Service for registering and managing models in the risk management framework
  */
-class ModelRegistrationService {
+export class ModelRegistrationService {
     constructor(riskManagementFramework) {
         this.validationStrategies = new Map();
         this.monitoringPlans = new Map();
@@ -263,4 +260,3 @@ ${modelInfo.nextReviewDate}
         this.modelDocumentation.set(modelId, [technicalDoc, governanceDoc]);
     }
 }
-exports.ModelRegistrationService = ModelRegistrationService;

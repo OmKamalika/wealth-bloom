@@ -64,15 +64,25 @@ exports.handler = async (event, context) => {
     console.log('💰 Net worth:', calculatorData.financialFoundation.currentNetWorth);
     console.log('🔢 Complexity score:', calculatorData.complexityAnalysis.complexityScore);
     
-    // Try to import the compiled AdvancedWealthCalculator
+    // Try to import the AdvancedWealthCalculator
+    let AdvancedWealthCalculator;
     let results;
+    
     try {
-      const { AdvancedWealthCalculator } = require('./dist-functions/services/AdvancedWealthCalculator');
+      // Try to import from the compiled functions directory
+      const { AdvancedWealthCalculator: AWC } = require('./dist-functions/services/AdvancedWealthCalculator');
+      AdvancedWealthCalculator = AWC;
+      console.log('🔮 Successfully imported AdvancedWealthCalculator from compiled functions');
+      
+      // Run the advanced calculation
       console.log('🔮 Starting calculation with AdvancedWealthCalculator...');
       results = await AdvancedWealthCalculator.calculateWealthExtinction(calculatorData);
       console.log('✅ Advanced calculation completed');
     } catch (importError) {
-      console.log('⚠️ Could not import AdvancedWealthCalculator, using fallback calculation');
+      console.error('❌ Error importing AdvancedWealthCalculator:', importError);
+      console.log('⚠️ Falling back to inline calculation function');
+      
+      // Fallback to inline calculation function
       results = calculateWealthExtinction(calculatorData);
     }
     

@@ -9,7 +9,7 @@
     "dev:backend": "tsx server.ts",
     "build": "npm run build:functions && vite build && npm run copy:compiled-functions",
     "build:functions": "tsc --project tsconfig.functions.json",
-    "copy:compiled-functions": "cp -r dist-functions netlify/functions/",
+    "copy:compiled-functions": "mkdir -p netlify/functions/dist-functions && cp -r dist-functions/* netlify/functions/dist-functions/",
     "lint": "eslint .",
     "preview": "vite preview"
   },

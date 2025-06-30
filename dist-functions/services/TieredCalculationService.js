@@ -1,15 +1,12 @@
-"use strict";
 // src/services/TieredCalculationService.ts
 // Service for handling tiered calculation architecture
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.tieredCalculationService = exports.TieredCalculationService = void 0;
-const uuid_1 = require("uuid");
-const AdvancedWealthCalculator_1 = require("./AdvancedWealthCalculator");
-const supabase_1 = require("../lib/supabase");
+import { v4 as uuidv4 } from 'uuid';
+import { AdvancedWealthCalculator } from './AdvancedWealthCalculator';
+import { supabase } from '../lib/supabase';
 /**
  * Service for handling tiered calculation architecture
  */
-class TieredCalculationService {
+export class TieredCalculationService {
     /**
      * Get singleton instance
      */
@@ -43,7 +40,7 @@ class TieredCalculationService {
             // Perform simplified calculation
             const results = await this.performSimplifiedCalculation(calculatorData);
             // Generate calculation ID
-            const calculationId = (0, uuid_1.v4)();
+            const calculationId = uuidv4();
             // Store calculation data for potential upgrade
             this.storeBasicCalculation(calculationId, inputs, calculatorData, results);
             // Return basic results
@@ -79,7 +76,7 @@ class TieredCalculationService {
         console.log('🔄 Queueing comprehensive calculation for user:', request.userId);
         try {
             // Generate job ID
-            const jobId = (0, uuid_1.v4)();
+            const jobId = uuidv4();
             // Create job status
             const jobStatus = {
                 jobId,
@@ -123,7 +120,7 @@ class TieredCalculationService {
         }
         // Check database
         try {
-            const { data, error } = await supabase_1.supabase
+            const { data, error } = await supabase
                 .from('calculation_jobs')
                 .select('*')
                 .eq('id', jobId)
@@ -167,7 +164,7 @@ class TieredCalculationService {
         }
         // Check database
         try {
-            const { data, error } = await supabase_1.supabase
+            const { data, error } = await supabase
                 .from('calculation_results')
                 .select('*')
                 .eq('job_id', jobId)
@@ -321,7 +318,7 @@ class TieredCalculationService {
         try {
             // Use the advanced calculator but with reduced Monte Carlo runs
             // This is a simplified version that runs much faster
-            return await AdvancedWealthCalculator_1.AdvancedWealthCalculator.calculateWealthExtinction(calculatorData);
+            return await AdvancedWealthCalculator.calculateWealthExtinction(calculatorData);
         }
         catch (error) {
             console.error('❌ Error in simplified calculation:', error);
@@ -345,9 +342,9 @@ class TieredCalculationService {
         });
         // Store in database if available
         try {
-            const { data: { user } } = await supabase_1.supabase.auth.getUser();
-            if (supabase_1.supabase && calculationId) {
-                const { error } = await supabase_1.supabase
+            const { data: { user } } = await supabase.auth.getUser();
+            if (supabase && calculationId) {
+                const { error } = await supabase
                     .from('wealth_calculations')
                     .insert([
                     {
@@ -394,8 +391,8 @@ class TieredCalculationService {
      */
     async storeCalculationJob(jobStatus, request) {
         try {
-            if (supabase_1.supabase) {
-                const { error } = await supabase_1.supabase
+            if (supabase) {
+                const { error } = await supabase
                     .from('calculation_jobs')
                     .insert([
                     {
@@ -584,7 +581,7 @@ class TieredCalculationService {
      */
     async getJobData(jobId) {
         try {
-            const { data, error } = await supabase_1.supabase
+            const { data, error } = await supabase
                 .from('calculation_jobs')
                 .select('*')
                 .eq('id', jobId)
@@ -607,8 +604,8 @@ class TieredCalculationService {
      */
     async updateJobStatus(jobId, jobStatus) {
         try {
-            if (supabase_1.supabase) {
-                const { error } = await supabase_1.supabase
+            if (supabase) {
+                const { error } = await supabase
                     .from('calculation_jobs')
                     .update({
                     status: jobStatus.status,
@@ -643,7 +640,7 @@ class TieredCalculationService {
             jobStatus.currentStep = 'Running Monte Carlo simulation';
             await this.updateJobStatus(jobStatus.jobId, jobStatus);
             // Perform calculation
-            const results = await AdvancedWealthCalculator_1.AdvancedWealthCalculator.calculateWealthExtinction(inputs);
+            const results = await AdvancedWealthCalculator.calculateWealthExtinction(inputs);
             // Update progress
             jobStatus.progress = 90;
             jobStatus.currentStep = 'Finalizing results';
@@ -666,8 +663,8 @@ class TieredCalculationService {
             // Cache results
             this.calculationCache.set(jobId, results);
             // Store in database
-            if (supabase_1.supabase) {
-                const { error } = await supabase_1.supabase
+            if (supabase) {
+                const { error } = await supabase
                     .from('calculation_results')
                     .insert([
                     {
@@ -720,6 +717,5 @@ class TieredCalculationService {
         console.log('📧 Sending failure notification');
     }
 }
-exports.TieredCalculationService = TieredCalculationService;
 // Export singleton instance
-exports.tieredCalculationService = TieredCalculationService.getInstance();
+export const tieredCalculationService = TieredCalculationService.getInstance();

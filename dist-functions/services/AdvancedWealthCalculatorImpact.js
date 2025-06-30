@@ -1,13 +1,10 @@
-"use strict";
 // src/services/AdvancedWealthCalculatorImpact.ts
 // Implementation of family impact analysis for the advanced wealth calculation engine
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.AdvancedWealthCalculatorImpact = void 0;
 /**
  * Advanced Wealth Calculator Impact Service
  * Analyzes the impact of wealth trajectory on family members across generations
  */
-class AdvancedWealthCalculatorImpact {
+export class AdvancedWealthCalculatorImpact {
     /**
      * Calculate comprehensive family impact analysis
      */
@@ -277,7 +274,6 @@ class AdvancedWealthCalculatorImpact {
         return impacts.sort((a, b) => Math.abs(b.financialImpact) - Math.abs(a.financialImpact));
     }
 }
-exports.AdvancedWealthCalculatorImpact = AdvancedWealthCalculatorImpact;
 // Estate tax exemption thresholds (in INR)
 AdvancedWealthCalculatorImpact.ESTATE_TAX_EXEMPTION = 10000000; // ₹1 Crore (hypothetical for India)
 // Estate tax rates (hypothetical for India)

@@ -1,12 +1,9 @@
-"use strict";
 // src/services/ModelMonitoringService.ts
 // Service for monitoring model performance and detecting drift
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ModelMonitoringService = void 0;
 /**
  * Service for monitoring model performance and detecting drift
  */
-class ModelMonitoringService {
+export class ModelMonitoringService {
     constructor(riskManagementFramework) {
         this.monitoringPlans = new Map();
         this.monitoringResults = new Map();
@@ -361,4 +358,3 @@ class ModelMonitoringService {
         this.activeAlerts.set(modelId, updatedAlerts);
     }
 }
-exports.ModelMonitoringService = ModelMonitoringService;

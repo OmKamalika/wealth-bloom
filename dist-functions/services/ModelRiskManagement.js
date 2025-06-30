@@ -1,15 +1,12 @@
-"use strict";
 // src/services/ModelRiskManagement.ts
 // Implementation of the Model Risk Management Framework
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ModelRiskManagementFramework = void 0;
 /**
  * Model Risk Management Framework
  *
  * This class implements a comprehensive model risk management framework
  * for financial models, following regulatory best practices.
  */
-class ModelRiskManagementFramework {
+export class ModelRiskManagementFramework {
     constructor() {
         this.modelInventory = new Map();
         this.validationResults = new Map();
@@ -432,4 +429,3 @@ class ModelRiskManagementFramework {
         return recommendations;
     }
 }
-exports.ModelRiskManagementFramework = ModelRiskManagementFramework;

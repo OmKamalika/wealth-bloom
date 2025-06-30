@@ -1,13 +1,10 @@
-"use strict";
 // src/services/AdvancedWealthCalculatorDestroyers.ts
 // Implementation of wealth destroyer analysis for the advanced wealth calculation engine
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.AdvancedWealthCalculatorDestroyers = void 0;
 /**
  * Advanced Wealth Calculator Destroyers Service
  * Identifies and quantifies the factors that most significantly deplete wealth
  */
-class AdvancedWealthCalculatorDestroyers {
+export class AdvancedWealthCalculatorDestroyers {
     /**
      * Identify top wealth destroyers based on user inputs
      */
@@ -444,7 +441,6 @@ class AdvancedWealthCalculatorDestroyers {
         }
     }
 }
-exports.AdvancedWealthCalculatorDestroyers = AdvancedWealthCalculatorDestroyers;
 // Base impact factors for different wealth destroyers (in INR)
 AdvancedWealthCalculatorDestroyers.BASE_IMPACT_FACTORS = {
     'education_costs': 2500000, // ₹25L base impact

@@ -1,13 +1,10 @@
-"use strict";
 // src/services/AdvancedWealthCalculatorComplexity.ts
 // Implementation of complexity analysis for the advanced wealth calculation engine
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.AdvancedWealthCalculatorComplexity = void 0;
 /**
  * Advanced Wealth Calculator Complexity Analysis Service
  * Implements sophisticated complexity modeling for Indian family financial planning
  */
-class AdvancedWealthCalculatorComplexity {
+export class AdvancedWealthCalculatorComplexity {
     /**
      * Analyze complexity factors comprehensively
      */
@@ -571,7 +568,6 @@ class AdvancedWealthCalculatorComplexity {
         return mitigations[risk] || 'Monitor and plan for potential risks';
     }
 }
-exports.AdvancedWealthCalculatorComplexity = AdvancedWealthCalculatorComplexity;
 // Complexity factors and their weights
 AdvancedWealthCalculatorComplexity.COMPLEXITY_FACTORS = {
     'children_count': { weight: 0.15, maxScore: 10 },

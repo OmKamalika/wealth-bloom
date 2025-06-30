@@ -1,13 +1,10 @@
-"use strict";
 // src/services/AdvancedWealthCalculatorIncome.ts
 // Implementation of income progression calculations for the advanced wealth calculation engine
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.AdvancedWealthCalculatorIncome = void 0;
 /**
  * Advanced Wealth Calculator Income Progression Service
  * Implements sophisticated income modeling with Indian market context
  */
-class AdvancedWealthCalculatorIncome {
+export class AdvancedWealthCalculatorIncome {
     /**
      * Calculate Indian income progression based on detailed inputs
      */
@@ -202,7 +199,6 @@ class AdvancedWealthCalculatorIncome {
         return this.INDIAN_INFLATION_RATES[year] || this.INDIAN_INFLATION_RATES.default;
     }
 }
-exports.AdvancedWealthCalculatorIncome = AdvancedWealthCalculatorIncome;
 // Indian inflation rates by year (historical and projected)
 AdvancedWealthCalculatorIncome.INDIAN_INFLATION_RATES = {
     2025: 0.045, // 4.5%

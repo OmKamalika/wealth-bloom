@@ -1,13 +1,10 @@
-"use strict";
 // src/services/AdvancedWealthCalculatorInvestments.ts
 // Implementation of investment return calculations for the advanced wealth calculation engine
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.AdvancedWealthCalculatorInvestments = void 0;
 /**
  * Advanced Wealth Calculator Investments Service
  * Implements sophisticated investment return modeling with Indian market context
  */
-class AdvancedWealthCalculatorInvestments {
+export class AdvancedWealthCalculatorInvestments {
     /**
      * Calculate Indian investment returns with comprehensive modeling
      */
@@ -398,7 +395,6 @@ class AdvancedWealthCalculatorInvestments {
         return maxDrawdown;
     }
 }
-exports.AdvancedWealthCalculatorInvestments = AdvancedWealthCalculatorInvestments;
 // Indian market return characteristics by asset class
 AdvancedWealthCalculatorInvestments.ASSET_CLASS_RETURNS = {
     'stocks': { baseReturn: 0.10, volatility: 0.28, correlation: 1.0 }, // Reduced return, increased volatility

@@ -1,20 +1,17 @@
-"use strict";
 // src/services/AdvancedWealthCalculator.ts
 // Implementation of the advanced wealth calculation engine
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.AdvancedWealthCalculator = void 0;
-const AdvancedWealthCalculatorIncome_1 = require("./AdvancedWealthCalculatorIncome");
-const AdvancedWealthCalculatorExpenses_1 = require("./AdvancedWealthCalculatorExpenses");
-const AdvancedWealthCalculatorInvestments_1 = require("./AdvancedWealthCalculatorInvestments");
-const AdvancedWealthCalculatorEvents_1 = require("./AdvancedWealthCalculatorEvents");
-const AdvancedWealthCalculatorComplexity_1 = require("./AdvancedWealthCalculatorComplexity");
-const AdvancedWealthCalculatorRecommendations_1 = require("./AdvancedWealthCalculatorRecommendations");
-const ExtremeValueTheoryService_1 = require("./ExtremeValueTheoryService");
+import { AdvancedWealthCalculatorIncome } from './AdvancedWealthCalculatorIncome';
+import { AdvancedWealthCalculatorExpenses } from './AdvancedWealthCalculatorExpenses';
+import { AdvancedWealthCalculatorInvestments } from './AdvancedWealthCalculatorInvestments';
+import { AdvancedWealthCalculatorEvents } from './AdvancedWealthCalculatorEvents';
+import { AdvancedWealthCalculatorComplexity } from './AdvancedWealthCalculatorComplexity';
+import { AdvancedWealthCalculatorRecommendations } from './AdvancedWealthCalculatorRecommendations';
+import { ExtremeValueTheoryService } from './ExtremeValueTheoryService';
 /**
  * Advanced Wealth Calculation Engine Service
  * Implements the sophisticated financial modeling described in the advanced engine
  */
-class AdvancedWealthCalculator {
+export class AdvancedWealthCalculator {
     /**
      * Calculate comprehensive wealth extinction analysis
      */
@@ -45,7 +42,7 @@ class AdvancedWealthCalculator {
         // Validate input data
         this.validateInputData(inputs);
         // Phase 1: Analyze complexity factors
-        const complexityAnalysis = AdvancedWealthCalculatorComplexity_1.AdvancedWealthCalculatorComplexity.analyzeComplexityFactors(inputs);
+        const complexityAnalysis = AdvancedWealthCalculatorComplexity.analyzeComplexityFactors(inputs);
         console.log('📊 Complexity Score:', complexityAnalysis.score);
         // Phase 2: Run optimized Monte Carlo simulation
         const scenarios = await this.runOptimizedMonteCarloSimulation(inputs);
@@ -60,7 +57,7 @@ class AdvancedWealthCalculator {
         // Phase 7: Identify wealth destroyers
         const topWealthDestroyers = this.identifyWealthDestroyers(inputs, baseProjection);
         // Phase 8: Generate recommendations
-        const recommendations = AdvancedWealthCalculatorRecommendations_1.AdvancedWealthCalculatorRecommendations.generateRecommendations(inputs, complexityAnalysis);
+        const recommendations = AdvancedWealthCalculatorRecommendations.generateRecommendations(inputs, complexityAnalysis);
         // Phase 9: Analyze scenarios
         const scenarioAnalysis = this.analyzeScenarios(scenarios, extinctionYear);
         // Phase 10: Perform Extreme Value Theory analysis
@@ -173,10 +170,10 @@ class AdvancedWealthCalculator {
             const currentYear = 2025 + year;
             currentAge = inputs.coreIdentity.age + year;
             // Simplified calculations for better performance
-            const yearlyIncome = AdvancedWealthCalculatorIncome_1.AdvancedWealthCalculatorIncome.calculateIndianIncomeProgression(year, currentAge, inputs);
-            const yearlyExpenses = AdvancedWealthCalculatorExpenses_1.AdvancedWealthCalculatorExpenses.calculateIndianExpenseProgression(year, currentAge, inputs);
-            const investmentReturns = AdvancedWealthCalculatorInvestments_1.AdvancedWealthCalculatorInvestments.calculateIndianInvestmentReturns(currentWealth, year, inputs);
-            const lifecycleImpacts = AdvancedWealthCalculatorEvents_1.AdvancedWealthCalculatorEvents.calculateIndianLifecycleEvents(year, currentAge, inputs);
+            const yearlyIncome = AdvancedWealthCalculatorIncome.calculateIndianIncomeProgression(year, currentAge, inputs);
+            const yearlyExpenses = AdvancedWealthCalculatorExpenses.calculateIndianExpenseProgression(year, currentAge, inputs);
+            const investmentReturns = AdvancedWealthCalculatorInvestments.calculateIndianInvestmentReturns(currentWealth, year, inputs);
+            const lifecycleImpacts = AdvancedWealthCalculatorEvents.calculateIndianLifecycleEvents(year, currentAge, inputs);
             // Update wealth
             const netCashFlow = yearlyIncome - yearlyExpenses + investmentReturns + lifecycleImpacts.netImpact;
             currentWealth = Math.max(0, currentWealth + netCashFlow);
@@ -212,13 +209,13 @@ class AdvancedWealthCalculator {
             const currentYear = 2025 + year;
             currentAge = inputs.coreIdentity.age + year;
             // Income calculation with Indian market conditions
-            const yearlyIncome = AdvancedWealthCalculatorIncome_1.AdvancedWealthCalculatorIncome.calculateIndianIncomeProgression(year, currentAge, inputs);
+            const yearlyIncome = AdvancedWealthCalculatorIncome.calculateIndianIncomeProgression(year, currentAge, inputs);
             // Expenses with Indian inflation and lifestyle patterns
-            const yearlyExpenses = AdvancedWealthCalculatorExpenses_1.AdvancedWealthCalculatorExpenses.calculateIndianExpenseProgression(year, currentAge, inputs);
+            const yearlyExpenses = AdvancedWealthCalculatorExpenses.calculateIndianExpenseProgression(year, currentAge, inputs);
             // Investment returns with Indian market volatility
-            const investmentReturns = AdvancedWealthCalculatorInvestments_1.AdvancedWealthCalculatorInvestments.calculateIndianInvestmentReturns(currentWealth, year, inputs);
+            const investmentReturns = AdvancedWealthCalculatorInvestments.calculateIndianInvestmentReturns(currentWealth, year, inputs);
             // Lifecycle events specific to Indian families
-            const lifecycleImpacts = AdvancedWealthCalculatorEvents_1.AdvancedWealthCalculatorEvents.calculateIndianLifecycleEvents(year, currentAge, inputs);
+            const lifecycleImpacts = AdvancedWealthCalculatorEvents.calculateIndianLifecycleEvents(year, currentAge, inputs);
             // Update wealth
             const netCashFlow = yearlyIncome - yearlyExpenses + investmentReturns + lifecycleImpacts.netImpact;
             currentWealth = Math.max(0, currentWealth + netCashFlow);
@@ -642,7 +639,7 @@ class AdvancedWealthCalculator {
             // Extract data for EVT analysis
             const data = this.extractDataForEVTAnalysis(projections, inputs.financialFoundation.currentNetWorth);
             // Perform EVT analysis
-            const evtResults = ExtremeValueTheoryService_1.ExtremeValueTheoryService.performEVTAnalysis(data);
+            const evtResults = ExtremeValueTheoryService.performEVTAnalysis(data);
             console.log('✅ EVT analysis completed successfully');
             return evtResults;
         }
@@ -768,7 +765,6 @@ class AdvancedWealthCalculator {
         return Math.sqrt(variance);
     }
 }
-exports.AdvancedWealthCalculator = AdvancedWealthCalculator;
 AdvancedWealthCalculator.SIMULATION_YEARS = 75;
 AdvancedWealthCalculator.MONTE_CARLO_RUNS = 20; // Reduced from 100 to 20 for much better performance
 AdvancedWealthCalculator.VARIABLES_MONITORED = 247;

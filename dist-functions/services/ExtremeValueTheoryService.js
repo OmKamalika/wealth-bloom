@@ -1,8 +1,5 @@
-"use strict";
 // src/services/ExtremeValueTheoryService.ts
 // Implementation of Extreme Value Theory for tail risk analysis
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ExtremeValueTheoryService = void 0;
 /**
  * Extreme Value Theory Service
  *
@@ -10,7 +7,7 @@ exports.ExtremeValueTheoryService = void 0;
  * in wealth projections. It uses the Generalized Pareto Distribution (GPD) to
  * model extreme events that could significantly impact wealth.
  */
-class ExtremeValueTheoryService {
+export class ExtremeValueTheoryService {
     /**
      * Fit a Generalized Pareto Distribution (GPD) to the data
      *
@@ -354,4 +351,3 @@ class ExtremeValueTheoryService {
         ];
     }
 }
-exports.ExtremeValueTheoryService = ExtremeValueTheoryService;

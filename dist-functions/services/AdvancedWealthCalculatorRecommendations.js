@@ -1,13 +1,10 @@
-"use strict";
 // src/services/AdvancedWealthCalculatorRecommendations.ts
 // Implementation of recommendations generation for the advanced wealth calculation engine
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.AdvancedWealthCalculatorRecommendations = void 0;
 /**
  * Advanced Wealth Calculator Recommendations Service
  * Implements sophisticated recommendation generation for Indian family financial planning
  */
-class AdvancedWealthCalculatorRecommendations {
+export class AdvancedWealthCalculatorRecommendations {
     /**
      * Generate comprehensive recommendations based on inputs and analysis
      */
@@ -321,7 +318,6 @@ class AdvancedWealthCalculatorRecommendations {
         return insights;
     }
 }
-exports.AdvancedWealthCalculatorRecommendations = AdvancedWealthCalculatorRecommendations;
 // Recommendation categories and their priorities
 AdvancedWealthCalculatorRecommendations.RECOMMENDATION_CATEGORIES = {
     'emergency_fund': { priority: 'critical', baseCost: 50000 },

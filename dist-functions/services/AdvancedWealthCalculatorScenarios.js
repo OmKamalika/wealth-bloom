@@ -1,13 +1,10 @@
-"use strict";
 // src/services/AdvancedWealthCalculatorScenarios.ts
 // Implementation of scenario analysis for the advanced wealth calculation engine
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.AdvancedWealthCalculatorScenarios = void 0;
 /**
  * Advanced Wealth Calculator Scenarios Service
  * Implements sophisticated scenario analysis for wealth projections
  */
-class AdvancedWealthCalculatorScenarios {
+export class AdvancedWealthCalculatorScenarios {
     /**
      * Analyze scenarios from Monte Carlo simulations
      */
@@ -281,7 +278,6 @@ class AdvancedWealthCalculatorScenarios {
         return scenarios;
     }
 }
-exports.AdvancedWealthCalculatorScenarios = AdvancedWealthCalculatorScenarios;
 // Scenario probability distributions
 AdvancedWealthCalculatorScenarios.SCENARIO_PROBABILITIES = {
     'bestCase': 0.1, // 10% probability

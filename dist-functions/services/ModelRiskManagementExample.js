@@ -1,15 +1,12 @@
-"use strict";
 // src/services/ModelRiskManagementExample.ts
 // Example usage of the Model Risk Management Framework
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ModelRiskManagementExample = void 0;
-const ModelRiskManagement_1 = require("./ModelRiskManagement");
-const ModelRegistrationService_1 = require("./ModelRegistrationService");
-const ModelMonitoringService_1 = require("./ModelMonitoringService");
+import { ModelRiskManagementFramework } from './ModelRiskManagement';
+import { ModelRegistrationService } from './ModelRegistrationService';
+import { ModelMonitoringService } from './ModelMonitoringService';
 /**
  * Example usage of the Model Risk Management Framework
  */
-class ModelRiskManagementExample {
+export class ModelRiskManagementExample {
     /**
      * Run the example
      */
@@ -18,9 +15,9 @@ class ModelRiskManagementExample {
         console.log('='.repeat(80));
         try {
             // Initialize the framework
-            const framework = new ModelRiskManagement_1.ModelRiskManagementFramework();
-            const registrationService = new ModelRegistrationService_1.ModelRegistrationService(framework);
-            const monitoringService = new ModelMonitoringService_1.ModelMonitoringService(framework);
+            const framework = new ModelRiskManagementFramework();
+            const registrationService = new ModelRegistrationService(framework);
+            const monitoringService = new ModelMonitoringService(framework);
             // Register wealth calculation model
             console.log('📝 Registering wealth calculation model...');
             const wealthModelId = registrationService.registerModel({
@@ -154,7 +151,6 @@ class ModelRiskManagementExample {
         }
     }
 }
-exports.ModelRiskManagementExample = ModelRiskManagementExample;
 // Run the example if this file is executed directly
 if (require.main === module) {
     ModelRiskManagementExample.run().catch(console.error);

@@ -1,13 +1,10 @@
-"use strict";
 // src/services/AdvancedWealthCalculatorExpenses.ts
 // Implementation of expense progression calculations for the advanced wealth calculation engine
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.AdvancedWealthCalculatorExpenses = void 0;
 /**
  * Advanced Wealth Calculator Expenses Service
  * Implements sophisticated expense modeling with Indian market context
  */
-class AdvancedWealthCalculatorExpenses {
+export class AdvancedWealthCalculatorExpenses {
     /**
      * Calculate Indian expense progression based on detailed inputs
      */
@@ -264,7 +261,6 @@ class AdvancedWealthCalculatorExpenses {
         return lifecycleExpenses;
     }
 }
-exports.AdvancedWealthCalculatorExpenses = AdvancedWealthCalculatorExpenses;
 // Indian inflation rates by category (annual)
 AdvancedWealthCalculatorExpenses.CATEGORY_INFLATION_RATES = {
     'housing': 0.07, // Increased from 0.06

@@ -1,13 +1,10 @@
-"use strict";
 // src/services/AdvancedWealthCalculatorEvents.ts
 // Implementation of lifecycle events calculations for the advanced wealth calculation engine
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.AdvancedWealthCalculatorEvents = void 0;
 /**
  * Advanced Wealth Calculator Events Service
  * Implements sophisticated lifecycle event modeling with Indian family context
  */
-class AdvancedWealthCalculatorEvents {
+export class AdvancedWealthCalculatorEvents {
     /**
      * Calculate Indian lifecycle events with comprehensive modeling
      */
@@ -254,7 +251,6 @@ class AdvancedWealthCalculatorEvents {
         }
     }
 }
-exports.AdvancedWealthCalculatorEvents = AdvancedWealthCalculatorEvents;
 // Wedding cost ranges by city type (in INR)
 AdvancedWealthCalculatorEvents.WEDDING_COSTS = {
     'metro': { min: 1800000, max: 6000000 }, // Increased from ₹15L-50L to ₹18L-60L
